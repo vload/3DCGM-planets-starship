@@ -99,6 +99,12 @@ void GPUMesh::draw(const Shader& drawingShader)
     glDrawElements(GL_TRIANGLES, m_numIndices, GL_UNSIGNED_INT, nullptr);
 }
 
+void GPUMesh::drawPatches(const Shader& drawingShader) {
+    // Draw the mesh's patches
+    glBindVertexArray(m_vao);
+    glDrawElements(GL_PATCHES, m_numIndices, GL_UNSIGNED_INT, nullptr);
+}
+
 void GPUMesh::moveInto(GPUMesh&& other)
 {
     freeGpuMemory();
