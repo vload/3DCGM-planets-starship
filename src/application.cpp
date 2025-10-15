@@ -1,7 +1,7 @@
 // #include "Image.h"
+#include "Body.h"
 #include "mesh.h"
 #include "texture.h"
-#include "Body.h"
 // Always include window first (because it includes glfw, which includes GL
 // which needs to be included AFTER glew). Can't wait for modules to fix this
 // stuff...
@@ -27,7 +27,7 @@ DISABLE_WARNINGS_POP()
 #include <vector>
 
 // Forward declaration for the helper defined below
-static Mesh makeIcosahedronMesh();
+static Mesh makeGeodesicIcosahedronMesh(int frequency);
 
 class Application {
    public:
@@ -60,7 +60,7 @@ class Application {
             GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/dragon.obj");
 
         // Create a hardcoded icosahedron CPU mesh and upload to GPU
-        Mesh ico = makeIcosahedronMesh();
+        Mesh ico = makeGeodesicIcosahedronMesh(10);
         try {
             m_icosaMesh = GPUMesh(ico);
         } catch (const std::exception& e) {
@@ -124,12 +124,13 @@ class Application {
                                         // a signed integer)
             ImGui::Checkbox("Use material if no texture", &m_useMaterial);
             ImGui::Checkbox("Wireframe", &m_wireframe);
+            ImGui::Checkbox("Body Tessellation", &m_bodyTessellation);
 
             // Render mode combo: 0 = loaded model (default), 1 = icosahedron
             static const char* meshItems[] = {"Loaded model", "Icosahedron"};
             ImGui::Combo("Render Mode", &m_renderMode, meshItems,
                          IM_ARRAYSIZE(meshItems));
-            
+
             m_bodies[0].imGuiControl();
 
             ImGui::End();
@@ -249,8 +250,8 @@ class Application {
         const float z = m_cameraDistance * cosf(pitchRad) * sinf(yawRad);
 
         m_cameraPosition = glm::vec3(x, y, z);
-        m_viewMatrix =
-            glm::lookAt(m_cameraPosition, glm::vec3(0.0f), glm::vec3(0.0f, 1.0f, 0.0f));
+        m_viewMatrix = glm::lookAt(m_cameraPosition, glm::vec3(0.0f),
+                                   glm::vec3(0.0f, 1.0f, 0.0f));
     }
 
     // Render the current frame (clears, sets states, and draws selected meshes)
@@ -329,7 +330,7 @@ class Application {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        for(Body& body : m_bodies) {
+        for (Body& body : m_bodies) {
             glm::mat4 modelMatrix = body.get_model_matrix();
 
             const glm::mat4 mvpMatrix =
@@ -337,9 +338,11 @@ class Application {
 
             m_icoShader.bind();
             glUniformMatrix4fv(m_icoShader.getUniformLocation("mvpMatrix"), 1,
-                               GL_FALSE, glm::value_ptr(mvpMatrix));
+                GL_FALSE, glm::value_ptr(mvpMatrix));
             glUniform3fv(m_icoShader.getUniformLocation("cameraWorldPos"), 1,
-                         glm::value_ptr(m_cameraPosition));
+                glm::value_ptr(m_cameraPosition));
+            glUniform1i(m_icoShader.getUniformLocation("tessellate"),
+                        m_bodyTessellation ? 1 : 0);
 
             body.draw(m_icoShader);
         }
@@ -362,6 +365,7 @@ class Application {
     Texture m_texture;
     bool m_useMaterial{true};
     bool m_wireframe{false};
+    bool m_bodyTessellation{true};
 
     std::vector<Body> m_bodies;
 
@@ -381,33 +385,105 @@ class Application {
     glm::vec3 m_cameraPosition{-1, 1, -1};
 };
 
-// Helper: create a CPU-side Mesh that represents a unit icosahedron centered at
-// origin.
-static Mesh makeIcosahedronMesh() {
+// Helper: create a CPU-side Mesh that represents a class I geodesic icosahedron
+// centered at origin, with given frequency (>=1).
+static Mesh makeGeodesicIcosahedronMesh(int frequency) {
     Mesh mesh;
+    if (frequency < 1) frequency = 1;
+
     const float t = (1.0f + sqrtf(5.0f)) * 0.5f;
 
-    std::vector<glm::vec3> positions = {{-1, t, 0},  {1, t, 0},   {-1, -t, 0},
+    // Base icosahedron vertices
+    std::vector<glm::vec3> baseVerts = {{-1, t, 0},  {1, t, 0},   {-1, -t, 0},
                                         {1, -t, 0},  {0, -1, t},  {0, 1, t},
                                         {0, -1, -t}, {0, 1, -t},  {t, 0, -1},
                                         {t, 0, 1},   {-t, 0, -1}, {-t, 0, 1}};
+    for (auto& v : baseVerts) v = glm::normalize(v);
 
-    // Normalize positions to unit sphere
-    for (auto& p : positions) {
-        p = glm::normalize(p);
-    }
-
-    // Icosahedron triangle indices
-    const std::vector<glm::uvec3> tris = {
+    // Base icosahedron faces
+    const std::vector<glm::uvec3> baseFaces = {
         {0, 11, 5}, {0, 5, 1},  {0, 1, 7},   {0, 7, 10}, {0, 10, 11},
         {1, 5, 9},  {5, 11, 4}, {11, 10, 2}, {10, 7, 6}, {7, 1, 8},
         {3, 9, 4},  {3, 4, 2},  {3, 2, 6},   {3, 6, 8},  {3, 8, 9},
         {4, 9, 5},  {2, 4, 11}, {6, 2, 10},  {8, 6, 7},  {9, 8, 1}};
 
-    mesh.vertices.reserve(positions.size());
-    for (const auto& p : positions) {
+    // const std::vector<glm::uvec3> baseFaces = {{0, 11, 5}};
+
+    // Helper: interpolate between two vertices
+    auto interpolate = [&](const glm::vec3& a, const glm::vec3& b, int i,
+                           int n) {
+        return glm::normalize(glm::mix(a, b, float(i) / float(n)));
+    };
+
+    std::vector<glm::vec3> positions;
+    std::vector<glm::uvec3> tris;
+
+    // Subdivide each face
+    for (const auto& face : baseFaces) {
+        glm::vec3 v0 = baseVerts[face.x];
+        glm::vec3 v1 = baseVerts[face.y];
+        glm::vec3 v2 = baseVerts[face.z];
+
+        // Generate subdivided points on the face
+        std::vector<std::vector<int>> grid(frequency + 1);
+
+        for (int i = 0; i <= frequency; ++i) {
+            glm::vec3 a = interpolate(v2, v0, i, frequency);
+            glm::vec3 b = interpolate(v2, v1, i, frequency);
+
+            for (int j = 0; j <= i; ++j) {
+                glm::vec3 p = interpolate(a, b, j, i == 0 ? 1 : i);
+                positions.push_back(p);
+                grid[i].push_back((int)positions.size() - 1);
+            }
+        }
+
+        // Create small triangles from the grid of points
+        for (int i = 0; i < frequency; ++i) {
+            for (int j = 0; j <= i; ++j) {
+                int a = grid[i][j];
+                int b = grid[i + 1][j];
+                int c = grid[i + 1][j + 1];
+                tris.push_back({a, b, c});
+
+                if (j > 0) {
+                    int d = grid[i][j - 1];
+                    tris.push_back({a, d, b});
+                }
+            }
+        }
+    }
+
+    // Deduplicate vertices
+    std::vector<glm::vec3> uniqueVerts;
+    std::vector<int> remap(positions.size(), -1);
+    float eps = 1e-5f;
+    for (size_t i = 0; i < positions.size(); ++i) {
+        const glm::vec3& p = positions[i];
+        bool found = false;
+        for (size_t j = 0; j < uniqueVerts.size(); ++j) {
+            if (glm::length(uniqueVerts[j] - p) < eps) {
+                remap[i] = (int)j;
+                found = true;
+                break;
+            }
+        }
+        if (!found) {
+            remap[i] = (int)uniqueVerts.size();
+            uniqueVerts.push_back(p);
+        }
+    }
+    for (auto& tri : tris) {
+        tri.x = remap[tri.x];
+        tri.y = remap[tri.y];
+        tri.z = remap[tri.z];
+    }
+
+    // Build vertex list
+    mesh.vertices.reserve(uniqueVerts.size());
+    for (const auto& p : uniqueVerts) {
         Vertex v;
-        v.position = p;
+        v.position = glm::normalize(p);
         v.normal = glm::normalize(p);
         v.texCoord = glm::vec2(0.0f);
         mesh.vertices.push_back(v);

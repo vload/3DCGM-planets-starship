@@ -12,6 +12,7 @@ uniform float radius = 1.0;
 uniform float targetPixelSize = 5.0; // desired triangle size in pixels
 uniform float screenHeight = 1024.0;
 uniform float fov = 1.3962; // vertical FOV in radians (~80 deg)
+uniform int tessellate = 1; // whether to apply tessellation
 
 float computeTessLevel(vec3 p0, vec3 p1, vec3 p2)
 {
@@ -30,13 +31,20 @@ void main()
 
     if (gl_InvocationID == 0)
     {
-        float t = computeTessLevel(vsPosition[0], vsPosition[1], vsPosition[2]);
+        if (tessellate == 0) {
+            gl_TessLevelOuter[0] = 1.0;
+            gl_TessLevelOuter[1] = 1.0;
+            gl_TessLevelOuter[2] = 1.0;
+            gl_TessLevelInner[0] = 1.0;
+        }
+        else{
+            float t = computeTessLevel(vsPosition[0], vsPosition[1], vsPosition[2]);
 
-        gl_TessLevelOuter[0] = t;
-        gl_TessLevelOuter[1] = t;
-        gl_TessLevelOuter[2] = t;
-        gl_TessLevelInner[0] = max(1.0, t);
+            gl_TessLevelOuter[0] = t;
+            gl_TessLevelOuter[1] = t;
+            gl_TessLevelOuter[2] = t;
+            gl_TessLevelInner[0] = max(1.0, t);
+        }
     }
-
     gl_out[gl_InvocationID].gl_Position = vec4(tcsPosition[gl_InvocationID], 1.0);
 }
