@@ -7,6 +7,7 @@ out vec3 fragPosition;
 
 uniform mat4 mvpMatrix;
 uniform float radius = 1.0;
+// uniform float test = 0.0;
 
 void main()
 {
@@ -21,7 +22,7 @@ void main()
     pos = normalize(pos) * radius;
 
     fragNormal = normalize(pos);
-    fragPosition = pos;
 
     gl_Position = mvpMatrix * vec4(pos, 1.0);
+    fragPosition = gl_Position.xyz;
 }

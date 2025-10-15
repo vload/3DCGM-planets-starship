@@ -15,14 +15,13 @@ in vec3 fragNormal;
 layout(location = 0) out vec4 fragColor;
 
 
-uniform vec3 lightDir = normalize(vec3(10.0, 0.0, 0.0));
+vec3 lightPos = vec3(10.0, 0.0, 0.0);
 uniform vec3 color = vec3(0.3, 0.3, 1.0);
 
 void main()
 {
-    // vec3 normal = normalize(fragNormal);
-    // fragColor = vec4(normal, 1);
-
-    float diffuse = max(dot(fragNormal, lightDir), 0.0);
+    vec3 lightDir = normalize(lightPos - fragPosition);
+    vec3 normal = normalize(fragNormal);
+    float diffuse = max(dot(normal, lightDir), 0.0);
     fragColor = vec4(color * diffuse, 1.0);
 }

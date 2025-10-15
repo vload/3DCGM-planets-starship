@@ -1,8 +1,8 @@
 #pragma once
-#include "mesh.h"
-
 #include <framework/disable_all_warnings.h>
 #include <framework/shader.h>
+
+#include "mesh.h"
 DISABLE_WARNINGS_PUSH()
 #include <imgui/imgui.h>
 
@@ -11,11 +11,12 @@ DISABLE_WARNINGS_PUSH()
 DISABLE_WARNINGS_POP()
 
 // This is a planet
-// TODO: create a Planet class that inherits from Body, and also Star maybe Asteroid / moon? IDK
+// TODO: create a Planet class that inherits from Body, and also Star maybe
+// Asteroid / moon? IDK
 class Body {
-
-public:
-    Body(const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh) : position(pos), radius(r), icosahedronMesh(icosahedron_mesh) {}
+   public:
+    Body(const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
+        : position(pos), radius(r), icosahedronMesh(icosahedron_mesh) {}
 
     glm::vec3 getPosition() const { return position; }
     float getRadius() const { return radius; }
@@ -34,16 +35,19 @@ public:
     void imGuiControl() {
         ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
         ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 100.0f, "%.2f");
+        ImGui::SliderFloat("Test", &test, 0.0f, 100.00f, "%.2f");
     }
 
     void draw(const Shader& drawingShader) const {
         glUniform1f(drawingShader.getUniformLocation("radius"), radius);
+        glUniform1f(drawingShader.getUniformLocation("test"), test);
 
         icosahedronMesh.drawPatches(drawingShader);
     }
 
-private:
+   private:
     GPUMesh& icosahedronMesh;
     glm::vec3 position;
     float radius;
+    float test = 0.0f;
 };

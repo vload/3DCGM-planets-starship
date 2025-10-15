@@ -108,11 +108,18 @@ class Application {
 
     void update() {
         int dummyInteger = 0;  // Initialized to 0
+        static double lastTime = glfwGetTime();
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
             m_window.updateInput();
 
+
+            // Update camera position 
+            double deltaTime = glfwGetTime() - lastTime;
+            lastTime = glfwGetTime();
+            update_camera(deltaTime);
+                
             // Use ImGui for easy input/output of ints, floats, strings, etc...
             ImGui::Begin("Window");
             ImGui::InputInt(
@@ -142,11 +149,44 @@ class Application {
         }
     }
 
+    void update_camera(double delta_time){
+        // Recompute view matrix to always look at origin (0,0,0)
+        const float yawRad = glm::radians(m_cameraYaw);
+        const float pitchRad = glm::radians(m_cameraPitch);
+
+        m_cameraFront = glm::vec3(
+            cosf(pitchRad) * cosf(yawRad),
+            sinf(pitchRad),
+            cosf(pitchRad) * sinf(yawRad)
+        );
+
+        glm::vec3 right = glm::normalize(glm::cross(m_cameraFront, m_cameraUp));
+
+        float camera_speed = 0.5f;
+
+        if(m_isMovingLeft){
+            m_cameraPosition += right * -camera_speed * (float) delta_time;
+        }
+        if(m_isMovingRight){
+            m_cameraPosition += right * camera_speed * (float) delta_time;
+        }
+
+        m_cameraPosition += glm::normalize(m_cameraFront) * m_scrollOffset;
+        m_scrollOffset = 0.0f;
+
+        m_viewMatrix = glm::lookAt(m_cameraPosition, m_cameraPosition + m_cameraFront, m_cameraUp);
+    }
+
     // In here you can handle key presses
     // key - Integer that corresponds to numbers in
     // https://www.glfw.org/docs/latest/group__keys.html mods - Any modifier
     // keys pressed, like shift or control
     void onKeyPressed(int key, int mods) {
+        if (key == GLFW_KEY_A)
+            m_isMovingLeft = true;
+        else if (key == GLFW_KEY_D)
+            m_isMovingRight = true;
+
         std::cout << "Key pressed: " << key << std::endl;
     }
 
@@ -155,6 +195,11 @@ class Application {
     // https://www.glfw.org/docs/latest/group__keys.html mods - Any modifier
     // keys pressed, like shift or control
     void onKeyReleased(int key, int mods) {
+        if(key == GLFW_KEY_A)
+            m_isMovingLeft = false;
+        else if(key == GLFW_KEY_D)
+            m_isMovingRight = false;
+        
         std::cout << "Key released: " << key << std::endl;
     }
 
@@ -172,28 +217,15 @@ class Application {
             const double dx = cursorPos.x - m_prevCursor.x;
             const double dy = cursorPos.y - m_prevCursor.y;
             // Sensitivity: degrees per pixel
-            const double yawSpeed = 0.25;
-            const double pitchSpeed = 0.25;
+            const double yawSpeed = 0.1;
+            const double pitchSpeed = 0.1;
 
             m_cameraYaw += static_cast<float>(dx * yawSpeed);
-            m_cameraPitch += static_cast<float>(-dy * pitchSpeed);
+            m_cameraPitch += static_cast<float>(dy * pitchSpeed);
 
             // Clamp pitch to avoid flipping (e.g., -89..89 degrees)
             if (m_cameraPitch > 89.0f) m_cameraPitch = 89.0f;
             if (m_cameraPitch < -89.0f) m_cameraPitch = -89.0f;
-
-            // Recompute view matrix to always look at origin (0,0,0)
-            const float yawRad = glm::radians(m_cameraYaw);
-            const float pitchRad = glm::radians(m_cameraPitch);
-
-            // Spherical to Cartesian
-            const float x = m_cameraDistance * cosf(pitchRad) * cosf(yawRad);
-            const float y = m_cameraDistance * sinf(pitchRad);
-            const float z = m_cameraDistance * cosf(pitchRad) * sinf(yawRad);
-
-            m_cameraPosition = glm::vec3(x, y, z);
-            m_viewMatrix = glm::lookAt(m_cameraPosition, glm::vec3(0.0f),
-                                       glm::vec3(0.0f, 1.0f, 0.0f));
 
             m_prevCursor = cursorPos;
         }
@@ -232,26 +264,7 @@ class Application {
         // Zoom sensitivity: units per scroll tick
         const float zoomSpeed = 0.2f;
 
-        // Decrease distance to zoom in when scrolling up (positive y), increase
-        // when scrolling down
-        m_cameraDistance -= offset.y * zoomSpeed;
-
-        // Clamp distance to avoid going through the origin or negative
-        // distances
-        if (m_cameraDistance < 0.1f) m_cameraDistance = 0.1f;
-        if (m_cameraDistance > 100.0f) m_cameraDistance = 100.0f;
-
-        // Recompute view matrix to always look at origin (0,0,0)
-        const float yawRad = glm::radians(m_cameraYaw);
-        const float pitchRad = glm::radians(m_cameraPitch);
-
-        const float x = m_cameraDistance * cosf(pitchRad) * cosf(yawRad);
-        const float y = m_cameraDistance * sinf(pitchRad);
-        const float z = m_cameraDistance * cosf(pitchRad) * sinf(yawRad);
-
-        m_cameraPosition = glm::vec3(x, y, z);
-        m_viewMatrix = glm::lookAt(m_cameraPosition, glm::vec3(0.0f),
-                                   glm::vec3(0.0f, 1.0f, 0.0f));
+        m_scrollOffset += offset.y * zoomSpeed;
     }
 
     // Render the current frame (clears, sets states, and draws selected meshes)
@@ -369,20 +382,24 @@ class Application {
 
     std::vector<Body> m_bodies;
 
+    // Camera parameters
+    float m_cameraYaw{-45.0f};   // degrees
+    float m_cameraPitch{30.0f};  // degrees
+    glm::vec3 m_cameraPosition{-1, 1, -1};
+    glm::vec3 m_cameraUp{0,1,0};
+    glm::vec3 m_cameraFront{0,0,0};
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix =
         glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
     glm::mat4 m_viewMatrix =
-        glm::lookAt(glm::vec3(-1, 1, -1), glm::vec3(0), glm::vec3(0, 1, 0));
+        glm::lookAt(m_cameraPosition, glm::vec3(0), m_cameraUp);
     glm::mat4 m_modelMatrix{1.0f};
-    // Orbit camera state: yaw (around Y), pitch (around X), distance from
-    // origin
-    float m_cameraYaw{-45.0f};   // degrees
-    float m_cameraPitch{30.0f};  // degrees
-    float m_cameraDistance{3.0f};
-    bool m_isDragging{false};
+    // Input state
     glm::dvec2 m_prevCursor{-1.0, -1.0};
-    glm::vec3 m_cameraPosition{-1, 1, -1};
+    float m_scrollOffset{0.0f};
+    bool m_isDragging{false};
+    bool m_isMovingLeft{false};
+    bool m_isMovingRight{false};
 };
 
 // Helper: create a CPU-side Mesh that represents a class I geodesic icosahedron
