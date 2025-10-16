@@ -60,7 +60,7 @@ class Application {
             GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/dragon.obj");
 
         // Create a hardcoded icosahedron CPU mesh and upload to GPU
-        Mesh ico = makeGeodesicIcosahedronMesh(3);
+        Mesh ico = makeGeodesicIcosahedronMesh(1);
         try {
             m_icosaMesh = GPUMesh(ico);
         } catch (const std::exception& e) {
@@ -70,7 +70,8 @@ class Application {
 
         m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
         m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
-        m_bodies[1].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f, glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
+        m_bodies[1].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f,
+                              glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
 
         try {
             ShaderBuilder defaultBuilder;
@@ -117,14 +118,14 @@ class Application {
             // Put your real-time logic and rendering in here
             m_window.updateInput();
 
-            // Update camera position 
+            // Update camera position
             double deltaTime = glfwGetTime() - lastTime;
             lastTime = glfwGetTime();
             update_camera(deltaTime);
-            for(auto& body : m_bodies){
-                body.update((float) deltaTime);
+            for (auto& body : m_bodies) {
+                body.update((float)deltaTime);
             }
-                
+
             // Use ImGui for easy input/output of ints, floats, strings, etc...
             ImGui::Begin("Window");
             ImGui::InputInt(
@@ -142,9 +143,10 @@ class Application {
             static const char* meshItems[] = {"Loaded model", "Icosahedron"};
             ImGui::Combo("Render Mode", &m_renderMode, meshItems,
                          IM_ARRAYSIZE(meshItems));
-            
+
             ImGui::Separator();
-            ImGui::SliderInt("Selected Body", &selected_body, 0, (int)m_bodies.size() - 1);
+            ImGui::SliderInt("Selected Body", &selected_body, 0,
+                             (int)m_bodies.size() - 1);
             m_bodies[selected_body].imGuiControl();
 
             ImGui::End();
@@ -156,32 +158,30 @@ class Application {
         }
     }
 
-    void update_camera(double delta_time){
+    void update_camera(double delta_time) {
         // Recompute view matrix to always look at origin (0,0,0)
         const float yawRad = glm::radians(m_cameraYaw);
         const float pitchRad = glm::radians(m_cameraPitch);
 
-        m_cameraFront = glm::vec3(
-            cosf(pitchRad) * cosf(yawRad),
-            sinf(pitchRad),
-            cosf(pitchRad) * sinf(yawRad)
-        );
+        m_cameraFront = glm::vec3(cosf(pitchRad) * cosf(yawRad), sinf(pitchRad),
+                                  cosf(pitchRad) * sinf(yawRad));
 
         glm::vec3 right = glm::normalize(glm::cross(m_cameraFront, m_cameraUp));
 
         float camera_speed = 5.0f;
 
-        if(m_isMovingLeft){
-            m_cameraPosition += right * -camera_speed * (float) delta_time;
+        if (m_isMovingLeft) {
+            m_cameraPosition += right * -camera_speed * (float)delta_time;
         }
-        if(m_isMovingRight){
-            m_cameraPosition += right * camera_speed * (float) delta_time;
+        if (m_isMovingRight) {
+            m_cameraPosition += right * camera_speed * (float)delta_time;
         }
 
         m_cameraPosition += glm::normalize(m_cameraFront) * m_scrollOffset;
         m_scrollOffset = 0.0f;
 
-        m_viewMatrix = glm::lookAt(m_cameraPosition, m_cameraPosition + m_cameraFront, m_cameraUp);
+        m_viewMatrix = glm::lookAt(
+            m_cameraPosition, m_cameraPosition + m_cameraFront, m_cameraUp);
     }
 
     // In here you can handle key presses
@@ -202,11 +202,11 @@ class Application {
     // https://www.glfw.org/docs/latest/group__keys.html mods - Any modifier
     // keys pressed, like shift or control
     void onKeyReleased(int key, int mods) {
-        if(key == GLFW_KEY_A)
+        if (key == GLFW_KEY_A)
             m_isMovingLeft = false;
-        else if(key == GLFW_KEY_D)
+        else if (key == GLFW_KEY_D)
             m_isMovingRight = false;
-        
+
         std::cout << "Key released: " << key << std::endl;
     }
 
@@ -341,7 +341,7 @@ class Application {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         // glEnable(GL_DEPTH_TEST);
         glPatchParameteri(GL_PATCH_VERTICES, 3);
-        glDisable(GL_CULL_FACE);
+        glEnable(GL_CULL_FACE);
 
         // Respect wireframe toggle
         if (m_wireframe) {
@@ -358,9 +358,9 @@ class Application {
 
             m_icoShader.bind();
             glUniformMatrix4fv(m_icoShader.getUniformLocation("mvpMatrix"), 1,
-                GL_FALSE, glm::value_ptr(mvpMatrix));
+                               GL_FALSE, glm::value_ptr(mvpMatrix));
             glUniform3fv(m_icoShader.getUniformLocation("cameraWorldPos"), 1,
-                glm::value_ptr(m_cameraPosition));
+                         glm::value_ptr(m_cameraPosition));
             glUniform1i(m_icoShader.getUniformLocation("tessellate"),
                         m_bodyTessellation ? 1 : 0);
 
@@ -393,8 +393,8 @@ class Application {
     float m_cameraYaw{-45.0f};   // degrees
     float m_cameraPitch{30.0f};  // degrees
     glm::vec3 m_cameraPosition{-1, 1, -1};
-    glm::vec3 m_cameraUp{0,1,0};
-    glm::vec3 m_cameraFront{0,0,0};
+    glm::vec3 m_cameraUp{0, 1, 0};
+    glm::vec3 m_cameraFront{0, 0, 0};
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix =
         glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 1000.0f);

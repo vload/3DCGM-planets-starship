@@ -1,5 +1,5 @@
 #version 410 core
-layout(triangles, equal_spacing, cw) in;
+layout(triangles, equal_spacing, ccw) in;
 
 in vec3 tcsPosition[];
 out vec3 fragNormal;
