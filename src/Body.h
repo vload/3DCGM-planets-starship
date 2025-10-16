@@ -23,7 +23,19 @@ class Body {
 
     void update(float deltaTime) {
         // Update body state based on deltaTime
-        // nothing for now
+        if(parent == nullptr) {
+            position = glm::vec3(0.0f); // no orbiting if no parent
+            return; // no orbiting if no parent
+        }
+        glm::vec3 center = parent->getPosition() + R;
+        orbitAngle += (2.0f * glm::pi<float>() / orbitPeriod) * deltaTime; // radians per second
+        if(orbitAngle > 2.0f * glm::pi<float>()) {
+            orbitAngle -= 2.0f * glm::pi<float>();
+        }
+        glm::vec3 majorAxis = glm::normalize(-R);
+        glm::vec3 minorAxis = glm::normalize(glm::cross(orbitNormal, majorAxis));
+        position = center + largeRadius * cos(orbitAngle) * majorAxis + smallRadius * sin(orbitAngle) * minorAxis;
+
     }
 
     glm::mat4 get_model_matrix() const {
@@ -36,6 +48,14 @@ class Body {
         ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
         ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 100.0f, "%.2f");
         ImGui::SliderFloat("Test", &test, 0.0f, 100.00f, "%.2f");
+        ImGui::Separator();
+        ImGui::Text("Orbit Controls");
+        ImGui::SliderFloat3("Orbit R", glm::value_ptr(R), -10.0f, 10.0f, "%.2f");
+        ImGui::SliderFloat("Small Radius", &smallRadius, 0.0f, 10.0f, "%.2f");
+        ImGui::SliderFloat("Large Radius", &largeRadius, 0.0f, 10.0f, "%.2f");
+        ImGui::SliderFloat3("Orbit Normal", glm::value_ptr(orbitNormal), -1.0f, 1.0f, "%.3f");
+        if (glm::length(orbitNormal) > 1e-6f) orbitNormal = glm::normalize(orbitNormal);
+        ImGui::SliderFloat("Orbit Period (s)", &orbitPeriod, 0.001f, 10.0f, "%.2f");
     }
 
     void draw(const Shader& drawingShader) const {
@@ -45,9 +65,29 @@ class Body {
         icosahedronMesh.drawPatches(drawingShader);
     }
 
+    void set_orbit(const glm::vec3& r, float small_r, float large_r, const glm::vec3& normal, float period, Body* parent_body) {
+        R = r;
+        smallRadius = small_r;
+        largeRadius = large_r;
+        orbitNormal = glm::normalize(normal);
+        orbitPeriod = period;
+        parent = parent_body;
+        orbitAngle = 0.0f;
+    }
+
    private:
     GPUMesh& icosahedronMesh;
     glm::vec3 position;
     float radius;
     float test = 0.0f;
+
+    // Orbit parameters
+    Body* parent = nullptr; // the body this one orbits around
+    glm::vec3 R; // parent to child distance and direction (this is independent of time or orientations)
+    float smallRadius; // small elliptical orbit radius
+    float largeRadius; // large elliptical orbit radius
+    glm::vec3 orbitNormal; // normal vector of the orbital plane
+    // major axis is aligned with R (so minor axis is perpendicular to R in the orbital plane)
+    float orbitPeriod; // in seconds
+    float orbitAngle; // current angle in the orbit, in radians (0 means towards R)
 };

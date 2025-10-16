@@ -60,7 +60,7 @@ class Application {
             GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/dragon.obj");
 
         // Create a hardcoded icosahedron CPU mesh and upload to GPU
-        Mesh ico = makeGeodesicIcosahedronMesh(10);
+        Mesh ico = makeGeodesicIcosahedronMesh(3);
         try {
             m_icosaMesh = GPUMesh(ico);
         } catch (const std::exception& e) {
@@ -69,6 +69,8 @@ class Application {
         }
 
         m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
+        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
+        m_bodies[1].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f, glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
 
         try {
             ShaderBuilder defaultBuilder;
@@ -108,17 +110,20 @@ class Application {
 
     void update() {
         int dummyInteger = 0;  // Initialized to 0
+        int selected_body = 0;
         static double lastTime = glfwGetTime();
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
             m_window.updateInput();
 
-
             // Update camera position 
             double deltaTime = glfwGetTime() - lastTime;
             lastTime = glfwGetTime();
             update_camera(deltaTime);
+            for(auto& body : m_bodies){
+                body.update((float) deltaTime);
+            }
                 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
             ImGui::Begin("Window");
@@ -137,8 +142,10 @@ class Application {
             static const char* meshItems[] = {"Loaded model", "Icosahedron"};
             ImGui::Combo("Render Mode", &m_renderMode, meshItems,
                          IM_ARRAYSIZE(meshItems));
-
-            m_bodies[0].imGuiControl();
+            
+            ImGui::Separator();
+            ImGui::SliderInt("Selected Body", &selected_body, 0, (int)m_bodies.size() - 1);
+            m_bodies[selected_body].imGuiControl();
 
             ImGui::End();
 
@@ -162,7 +169,7 @@ class Application {
 
         glm::vec3 right = glm::normalize(glm::cross(m_cameraFront, m_cameraUp));
 
-        float camera_speed = 0.5f;
+        float camera_speed = 5.0f;
 
         if(m_isMovingLeft){
             m_cameraPosition += right * -camera_speed * (float) delta_time;
@@ -374,7 +381,7 @@ class Application {
     // icosahedron
     std::vector<GPUMesh> m_modelMeshes;
     GPUMesh m_icosaMesh{Mesh{}};
-    int m_renderMode{0};
+    int m_renderMode{1};
     Texture m_texture;
     bool m_useMaterial{true};
     bool m_wireframe{false};
@@ -390,7 +397,7 @@ class Application {
     glm::vec3 m_cameraFront{0,0,0};
     // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix =
-        glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 30.0f);
+        glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 1000.0f);
     glm::mat4 m_viewMatrix =
         glm::lookAt(m_cameraPosition, glm::vec3(0), m_cameraUp);
     glm::mat4 m_modelMatrix{1.0f};
