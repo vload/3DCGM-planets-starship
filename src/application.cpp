@@ -339,7 +339,7 @@ class Application {
         // Clear the screen (keep same background as default)
         glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-        // glEnable(GL_DEPTH_TEST);
+        glEnable(GL_DEPTH_TEST);
         glPatchParameteri(GL_PATCH_VERTICES, 3);
         glEnable(GL_CULL_FACE);
 
