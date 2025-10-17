@@ -66,11 +66,6 @@ class Body {
             set_orbit(param_orbit_direction, param_small_radius,
                       param_large_radius, param_orbit_normal,
                       param_orbit_period, parent);
-            param_orbit_direction = orbit_direction;
-            param_small_radius = smallRadius;
-            param_large_radius = largeRadius;
-            param_orbit_normal = orbitNormal;
-            param_orbit_period = orbitPeriod;
         }
     }
 
@@ -88,7 +83,12 @@ class Body {
         orbitNormal = glm::normalize(normal);
         orbitPeriod = period;
         parent = parent_body;
-        // orbitAngle = 0.0f;
+        // orbitAngle = 0.0f;            
+        param_orbit_direction = orbit_direction;
+        param_small_radius = smallRadius;
+        param_large_radius = largeRadius;
+        param_orbit_normal = orbitNormal;
+        param_orbit_period = orbitPeriod;
     }
 
    private:

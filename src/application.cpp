@@ -2,6 +2,7 @@
 #include "Body.h"
 #include "mesh.h"
 #include "texture.h"
+#include "camera.h"
 // Always include window first (because it includes glfw, which includes GL
 // which needs to be included AFTER glew). Can't wait for modules to fix this
 // stuff...
@@ -34,7 +35,8 @@ class Application {
     Application()
         : m_window("Final Project", glm::ivec2(1024, 1024),
                    OpenGLVersion::GL41),
-          m_texture(RESOURCE_ROOT "resources/checkerboard.png") {
+          m_texture(RESOURCE_ROOT "resources/checkerboard.png"),
+          m_camera(&m_window) {
         m_window.registerKeyCallback(
             [this](int key, int scancode, int action, int mods) {
                 if (action == GLFW_PRESS)
@@ -68,13 +70,13 @@ class Application {
                       << std::endl;
         }
 
+        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh);
         m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
-        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
-        m_bodies[1].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f,
+        m_bodies[1].set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
                               glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
-        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
-        m_bodies[2].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f,
-                              glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[1]);
+        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, m_icosaMesh);
+        m_bodies[2].set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 6.0f, 9.0f,
+                              glm::vec3(0.0f, 1.0f, 0.0f), 3.0f, &m_bodies[1]);
 
         try {
             ShaderBuilder defaultBuilder;
@@ -120,11 +122,11 @@ class Application {
             // This is your game loop
             // Put your real-time logic and rendering in here
             m_window.updateInput();
+            m_camera.updateInput();
 
             // Update camera position
             double deltaTime = glfwGetTime() - lastTime;
             lastTime = glfwGetTime();
-            update_camera(deltaTime);
             for (auto& body : m_bodies) {
                 body.update((float)deltaTime);
             }
@@ -161,42 +163,11 @@ class Application {
         }
     }
 
-    void update_camera(double delta_time) {
-        // Recompute view matrix to always look at origin (0,0,0)
-        const float yawRad = glm::radians(m_cameraYaw);
-        const float pitchRad = glm::radians(m_cameraPitch);
-
-        m_cameraFront = glm::vec3(cosf(pitchRad) * cosf(yawRad), sinf(pitchRad),
-                                  cosf(pitchRad) * sinf(yawRad));
-
-        glm::vec3 right = glm::normalize(glm::cross(m_cameraFront, m_cameraUp));
-
-        float camera_speed = 5.0f;
-
-        if (m_isMovingLeft) {
-            m_cameraPosition += right * -camera_speed * (float)delta_time;
-        }
-        if (m_isMovingRight) {
-            m_cameraPosition += right * camera_speed * (float)delta_time;
-        }
-
-        m_cameraPosition += glm::normalize(m_cameraFront) * m_scrollOffset;
-        m_scrollOffset = 0.0f;
-
-        m_viewMatrix = glm::lookAt(
-            m_cameraPosition, m_cameraPosition + m_cameraFront, m_cameraUp);
-    }
-
     // In here you can handle key presses
     // key - Integer that corresponds to numbers in
     // https://www.glfw.org/docs/latest/group__keys.html mods - Any modifier
     // keys pressed, like shift or control
     void onKeyPressed(int key, int mods) {
-        if (key == GLFW_KEY_A)
-            m_isMovingLeft = true;
-        else if (key == GLFW_KEY_D)
-            m_isMovingRight = true;
-
         std::cout << "Key pressed: " << key << std::endl;
     }
 
@@ -205,40 +176,14 @@ class Application {
     // https://www.glfw.org/docs/latest/group__keys.html mods - Any modifier
     // keys pressed, like shift or control
     void onKeyReleased(int key, int mods) {
-        if (key == GLFW_KEY_A)
-            m_isMovingLeft = false;
-        else if (key == GLFW_KEY_D)
-            m_isMovingRight = false;
-
         std::cout << "Key released: " << key << std::endl;
     }
 
     // If the mouse is moved this function will be called with the x, y
     // screen-coordinates of the mouse
     void onMouseMove(const glm::dvec2& cursorPos) {
-        // If dragging, orbit the camera around the origin.
-        if (m_isDragging) {
-            // Initialize previous cursor if invalid
-            if (m_prevCursor.x < 0.0 && m_prevCursor.y < 0.0) {
-                m_prevCursor = cursorPos;
-                return;
-            }
-
-            const double dx = cursorPos.x - m_prevCursor.x;
-            const double dy = cursorPos.y - m_prevCursor.y;
-            // Sensitivity: degrees per pixel
-            const double yawSpeed = 0.1;
-            const double pitchSpeed = 0.1;
-
-            m_cameraYaw += static_cast<float>(dx * yawSpeed);
-            m_cameraPitch += static_cast<float>(dy * pitchSpeed);
-
-            // Clamp pitch to avoid flipping (e.g., -89..89 degrees)
-            if (m_cameraPitch > 89.0f) m_cameraPitch = 89.0f;
-            if (m_cameraPitch < -89.0f) m_cameraPitch = -89.0f;
-
-            m_prevCursor = cursorPos;
-        }
+        std::cout << "Mouse moved: " << cursorPos.x << " " << cursorPos.y
+                  << std::endl;
     }
 
     // If one of the mouse buttons is pressed this function will be called
@@ -246,12 +191,7 @@ class Application {
     // https://www.glfw.org/docs/latest/group__buttons.html mods - Any modifier
     // buttons pressed
     void onMouseClicked(int button, int mods) {
-        // Start dragging when left mouse button is pressed
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            m_isDragging = true;
-            // Invalidate previous cursor so the first movement doesn't jump
-            m_prevCursor = glm::dvec2(-1.0, -1.0);
-        }
+        std::cout << "Mouse button pressed: " << button << std::endl;
     }
 
     // If one of the mouse buttons is released this function will be called
@@ -259,10 +199,7 @@ class Application {
     // https://www.glfw.org/docs/latest/group__buttons.html mods - Any modifier
     // buttons pressed
     void onMouseReleased(int button, int mods) {
-        if (button == GLFW_MOUSE_BUTTON_LEFT) {
-            m_isDragging = false;
-            m_prevCursor = glm::dvec2(-1.0, -1.0);
-        }
+        std::cout << "Mouse button released: " << button << std::endl;
     }
 
     // Handle mouse scroll (e.g., for zooming)
@@ -271,10 +208,6 @@ class Application {
     void onMouseScroll(const glm::vec2& offset) {
         std::cout << "Mouse scroll: " << offset.x << " " << offset.y
                   << std::endl;
-        // Zoom sensitivity: units per scroll tick
-        const float zoomSpeed = 0.2f;
-
-        m_scrollOffset += offset.y * zoomSpeed;
     }
 
     // Render the current frame (clears, sets states, and draws selected meshes)
@@ -296,9 +229,9 @@ class Application {
 
         glEnable(GL_DEPTH_TEST);
         glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-
+        
         const glm::mat4 mvpMatrix =
-            m_projectionMatrix * m_viewMatrix * m_modelMatrix;
+            m_projectionMatrix * m_camera.viewMatrix() * m_modelMatrix;
         // Normals should be transformed differently than positions (ignoring
         // translations + dealing with scaling):
         // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
@@ -355,15 +288,16 @@ class Application {
 
         for (Body& body : m_bodies) {
             glm::mat4 modelMatrix = body.get_model_matrix();
+            glm::mat4 viewMatrix = m_camera.viewMatrix();
 
             const glm::mat4 mvpMatrix =
-                m_projectionMatrix * m_viewMatrix * modelMatrix;
+                m_projectionMatrix * viewMatrix * modelMatrix;
 
             m_icoShader.bind();
             glUniformMatrix4fv(m_icoShader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(mvpMatrix));
             glUniform3fv(m_icoShader.getUniformLocation("cameraWorldPos"), 1,
-                         glm::value_ptr(m_cameraPosition));
+                         glm::value_ptr(m_camera.cameraPos()));
             glUniform1i(m_icoShader.getUniformLocation("tessellate"),
                         m_bodyTessellation ? 1 : 0);
 
@@ -373,6 +307,7 @@ class Application {
 
    private:
     Window m_window;
+    Camera m_camera;
 
     // Shader for default rendering and for depth rendering
     Shader m_defaultShader;
@@ -392,24 +327,9 @@ class Application {
 
     std::vector<Body> m_bodies;
 
-    // Camera parameters
-    float m_cameraYaw{-45.0f};   // degrees
-    float m_cameraPitch{30.0f};  // degrees
-    glm::vec3 m_cameraPosition{-1, 1, -1};
-    glm::vec3 m_cameraUp{0, 1, 0};
-    glm::vec3 m_cameraFront{0, 0, 0};
-    // Projection and view matrices for you to fill in and use
     glm::mat4 m_projectionMatrix =
         glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 1000.0f);
-    glm::mat4 m_viewMatrix =
-        glm::lookAt(m_cameraPosition, glm::vec3(0), m_cameraUp);
     glm::mat4 m_modelMatrix{1.0f};
-    // Input state
-    glm::dvec2 m_prevCursor{-1.0, -1.0};
-    float m_scrollOffset{0.0f};
-    bool m_isDragging{false};
-    bool m_isMovingLeft{false};
-    bool m_isMovingRight{false};
 };
 
 // Helper: create a CPU-side Mesh that represents a class I geodesic icosahedron
