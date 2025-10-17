@@ -3,6 +3,7 @@
 #include "mesh.h"
 #include "texture.h"
 #include "camera.h"
+#include "Star.h"
 // Always include window first (because it includes glfw, which includes GL
 // which needs to be included AFTER glew). Can't wait for modules to fix this
 // stuff...
@@ -70,13 +71,19 @@ class Application {
                       << std::endl;
         }
 
-        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh);
-        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
-        m_bodies[1].set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
-                              glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
-        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, m_icosaMesh);
-        m_bodies[2].set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 6.0f, 9.0f,
-                              glm::vec3(0.0f, 1.0f, 0.0f), 3.0f, &m_bodies[1]);
+        m_bodies.push_back(
+            new Star(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh));
+        m_bodies.push_back(
+            new Body(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh));
+        m_bodies[1]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
+                              glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, m_bodies[0]);
+        m_bodies.push_back(new Body(glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, m_icosaMesh));
+        m_bodies[2]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 6.0f, 9.0f,
+                              glm::vec3(0.0f, 1.0f, 0.0f), 3.0f, m_bodies[1]);
+
+        for (auto& body : m_bodies) {
+            body->setup();
+        }
 
         try {
             ShaderBuilder defaultBuilder;
@@ -128,7 +135,7 @@ class Application {
             double deltaTime = glfwGetTime() - lastTime;
             lastTime = glfwGetTime();
             for (auto& body : m_bodies) {
-                body.update((float)deltaTime);
+                body->update((float)deltaTime);
             }
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
@@ -152,7 +159,7 @@ class Application {
             ImGui::Separator();
             ImGui::SliderInt("Selected Body", &selected_body, 0,
                              (int)m_bodies.size() - 1);
-            m_bodies[selected_body].imGuiControl();
+            m_bodies[selected_body]->imGuiControl();
 
             ImGui::End();
 
@@ -286,24 +293,24 @@ class Application {
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
         }
 
-        for (Body& body : m_bodies) {
-            glm::mat4 modelMatrix = body.get_model_matrix();
+        for (auto& body : m_bodies) {
+            glm::mat4 modelMatrix = body->get_model_matrix();
             glm::mat4 viewMatrix = m_camera.viewMatrix();
 
             const glm::mat4 mvpMatrix =
                 m_projectionMatrix * viewMatrix * modelMatrix;
 
-            m_icoShader.bind();
-            glUniformMatrix4fv(m_icoShader.getUniformLocation("mvpMatrix"), 1,
+            body->shader.bind();
+            glUniformMatrix4fv(body->shader.getUniformLocation("mvpMatrix"), 1,
                                GL_FALSE, glm::value_ptr(mvpMatrix));
-            glUniform3fv(m_icoShader.getUniformLocation("cameraWorldPos"), 1,
+            glUniform3fv(body->shader.getUniformLocation("cameraWorldPos"), 1,
                          glm::value_ptr(m_camera.cameraPos()));
-            glUniform1i(m_icoShader.getUniformLocation("tessellate"),
+            glUniform1i(body->shader.getUniformLocation("tessellate"),
                         m_bodyTessellation ? 1 : 0);
-            glUniform1f(m_icoShader.getUniformLocation("time"),
+            glUniform1f(body->shader.getUniformLocation("time"),
                         (float)glfwGetTime());
 
-            body.draw(m_icoShader);
+            body->draw();
         }
     }
 
@@ -327,7 +334,7 @@ class Application {
     bool m_wireframe{false};
     bool m_bodyTessellation{true};
 
-    std::vector<Body> m_bodies;
+    std::vector<Body *> m_bodies;
 
     glm::mat4 m_projectionMatrix =
         glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 1000.0f);
