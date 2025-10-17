@@ -46,17 +46,32 @@ class Body {
     }
 
     void imGuiControl() {
-        ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
-        ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 100.0f, "%.2f");
+        // ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
+        ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 10.0f, "%.2f");
         ImGui::SliderFloat("Test", &test, 0.0f, 100.00f, "%.2f");
         ImGui::Separator();
         ImGui::Text("Orbit Controls");
-        ImGui::SliderFloat3("Orbit direction", glm::value_ptr(orbit_direction), -10.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Small Radius", &smallRadius, 0.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Large Radius", &largeRadius, 0.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat3("Orbit Normal", glm::value_ptr(orbitNormal), -1.0f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Orbit Period (s)", &orbitPeriod, 0.001f, 10.0f, "%.2f");
-        set_orbit(orbit_direction, smallRadius, largeRadius, orbitNormal, orbitPeriod, parent);
+        ImGui::SliderFloat3("Orbit direction",
+                            glm::value_ptr(param_orbit_direction), -1.0f, 1.0f,
+                            "%.2f");
+        ImGui::SliderFloat("Small Radius", &param_small_radius, 0.0f, 100.0f,
+                           "%.2f");
+        ImGui::SliderFloat("Large Radius", &param_large_radius, 0.0f, 100.0f,
+                           "%.2f");
+        ImGui::SliderFloat3("Orbit Normal", glm::value_ptr(param_orbit_normal),
+                            -1.0f, 1.0f, "%.3f");
+        ImGui::SliderFloat("Orbit Period (s)", &param_orbit_period, 0.001f,
+                           10.0f, "%.2f");
+        if(ImGui::Button("Apply Orbit Changes")){
+            set_orbit(param_orbit_direction, param_small_radius,
+                      param_large_radius, param_orbit_normal,
+                      param_orbit_period, parent);
+            param_orbit_direction = orbit_direction;
+            param_small_radius = smallRadius;
+            param_large_radius = largeRadius;
+            param_orbit_normal = orbitNormal;
+            param_orbit_period = orbitPeriod;
+        }
     }
 
     void draw(const Shader& drawingShader) const {
@@ -92,4 +107,10 @@ class Body {
     // so minor axis is perpendicular to orbit_direction in the orbital plane)
     float orbitPeriod; // in seconds
     float orbitAngle{0.0f}; // current angle in the orbit, in radians (0 means towards R)
+
+    glm::vec3 param_orbit_direction {1.0f, 0.0f, 0.0f};
+    float param_small_radius = 1.0f;
+    float param_large_radius = 1.0f;
+    glm::vec3 param_orbit_normal {0.0f, 1.0f, 0.0f};
+    float param_orbit_period = 1.0f;
 };

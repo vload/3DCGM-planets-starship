@@ -72,6 +72,9 @@ class Application {
         m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
         m_bodies[1].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f,
                               glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[0]);
+        m_bodies.emplace_back(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh);
+        m_bodies[2].set_orbit(glm::vec3(10.0f, 0.0f, 0.0f), 8.0f, 10.0f,
+                              glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, &m_bodies[1]);
 
         try {
             ShaderBuilder defaultBuilder;
