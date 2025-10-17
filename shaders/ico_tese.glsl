@@ -4,6 +4,7 @@ layout(triangles, equal_spacing, ccw) in;
 in vec3 tcsPosition[];
 out vec3 fragNormal;
 out vec3 fragPosition;
+out vec3 spherePosition;
 
 uniform mat4 mvpMatrix;
 uniform float radius = 1.0;
@@ -19,6 +20,7 @@ void main()
                gl_TessCoord.y * p1 +
                gl_TessCoord.z * p2;
 
+    spherePosition = normalize(pos);
     pos = normalize(pos) * radius;
 
     fragNormal = normalize(pos);

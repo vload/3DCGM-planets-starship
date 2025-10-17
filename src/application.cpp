@@ -300,6 +300,8 @@ class Application {
                          glm::value_ptr(m_camera.cameraPos()));
             glUniform1i(m_icoShader.getUniformLocation("tessellate"),
                         m_bodyTessellation ? 1 : 0);
+            glUniform1f(m_icoShader.getUniformLocation("time"),
+                        (float)glfwGetTime());
 
             body.draw(m_icoShader);
         }
