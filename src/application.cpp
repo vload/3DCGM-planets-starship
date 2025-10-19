@@ -4,6 +4,7 @@
 #include "texture.h"
 #include "camera.h"
 #include "Star.h"
+#include "Earth.h"
 // Always include window first (because it includes glfw, which includes GL
 // which needs to be included AFTER glew). Can't wait for modules to fix this
 // stuff...
@@ -63,7 +64,7 @@ class Application {
             GPUMesh::loadMeshGPU(RESOURCE_ROOT "resources/dragon.obj");
 
         // Create a hardcoded icosahedron CPU mesh and upload to GPU
-        Mesh ico = makeGeodesicIcosahedronMesh(1);
+        Mesh ico = makeGeodesicIcosahedronMesh(5);
         try {
             m_icosaMesh = GPUMesh(ico);
         } catch (const std::exception& e) {
@@ -72,9 +73,9 @@ class Application {
         }
 
         m_bodies.push_back(
-            new Star(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh));
+            new Earth(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh));
         m_bodies.push_back(
-            new Body(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh));
+            new Star(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh));
         m_bodies[1]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
                               glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, m_bodies[0]);
         m_bodies.push_back(new Body(glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, m_icosaMesh));

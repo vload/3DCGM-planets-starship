@@ -70,7 +70,7 @@ class Body {
     virtual void imGuiControl() {
         // ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
         ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Test", &test, 0.0f, 100.00f, "%.2f");
+        ImGui::SliderFloat("Test", &test, 0.0f, 2.00f, "%.3f");
         ImGui::Separator();
         ImGui::Text("Orbit Controls");
         ImGui::SliderFloat3("Orbit direction",
@@ -121,7 +121,7 @@ class Body {
     GPUMesh& icosahedronMesh;
     glm::vec3 position;
     float radius;
-    float test = 0.0f;
+    float test = 0.1f;
 
     // Orbit parameters
     Body* parent = nullptr;  // the body this one orbits around
