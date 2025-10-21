@@ -310,6 +310,7 @@ class Application {
                         m_bodyTessellation ? 1 : 0);
             glUniform1f(body->shader.getUniformLocation("time"),
                         (float)glfwGetTime());
+            
 
             body->draw();
         }

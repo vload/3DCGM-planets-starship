@@ -172,12 +172,7 @@ float fractalNoise(vec4 p) {
     return value / maxVal;
 }
 
-// Optional: Turbulence (absolute value)
-float turbulence(vec4 p) {
-    return abs(fractalNoise(p));
-}
-
-// Optional: Domain warping
+// Domain warping
 vec4 warp(vec4 p) {
     float wx = fractalNoise(p * 1.5 + vec4(0.0, 0.0, 0.0, 0.0));
     float wy = fractalNoise(p * 1.5 + vec4(100.0, 100.0, 100.0, 100.0));
@@ -188,51 +183,17 @@ float coloreh(vec4 pos) {
     // Domain warp for more natural cells
     pos = warp(pos);
 
-    // float noise_val = turbulence(pos);
     float noise_val = fractalNoise(pos);
 
-    // Optional post-processing
-    // noise_val = noise_val * 0.5 + 0.5; // map from [-1,1] to [0,1]
-    // noise_val = pow(noise_val, 2.4); // increase contrast
-    // noise_val = noise_val * 2.5 - 1.0; // map from [0,1] to [-1,1]
-    // noise_val = clamp(noise_val, -1.0, 1.0);
-
-
     return noise_val;
-
-    // Map [-1,1] -> [0,1]
-    // noise_val = noise_val * 0.5 + 0.5;
-
-    // // Color mapping with a smooth blend
-    // vec3 colorFromNoise;
-    // if (noise_val <= 0.5) {
-    //     float t = smoothstep(0.0, 0.5, noise_val);
-    //     colorFromNoise = mix(c0, c1, t);
-    // } else {
-    //     float t = smoothstep(0.5, 1.0, noise_val);
-    //     colorFromNoise = mix(c1, c2, t);
-    // }
-
-    // fragColor = vec4(colorFromNoise, 1.0);
 }
 
 
 void main()
 {
-    // vec3 lightDir = normalize(lightPos - fragPosition);
-    // vec3 normal = normalize(fragNormal);
-    // float diffuse = max(dot(normal, lightDir), 0.0);
-    // fragColor = vec4(color * diffuse, 1.0);
-    // float noise_val = snoise(vec4(spherePosition * 20.0, time));
     float noise_val = coloreh(vec4(spherePosition * 20.0, time * 0.3));
-    // noise_val changes:
-    // noise_val = noise_val * 0.5 + 0.5; // map from [-1,1] to [0,1]
-    // noise_val = noise_val * 4.0; // scale to [0,4]
-    // noise_val = pow(noise_val, 3.0); // increase contrast
-    // noise_val = clamp(noise_val, 0.0, 50.0);
-    // noise_val = noise_val / 50.0; // map from [0,50] to [0,1]
-    // noise_val = -noise_val * 2.0 + 1.0; // map from [0,1] to [-1,1]
 
+    // interpolate colors based on noise value
     vec3 c0 = vec3(0.5, 0.0, 0.0);
     vec3 c1 = vec3(1.0, 0.5, 0.0);
     vec3 c2 = vec3(1.0, 1.0, 1.0);

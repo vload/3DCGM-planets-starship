@@ -218,6 +218,31 @@ float coloreh(vec4 pos) {
     // fragColor = vec4(colorFromNoise, 1.0);
 }
 
+// Computes a procedural ocean normal for a spherical planet
+vec3 getOceanNormal(vec3 pos, float time) {
+    float delta = 0.01;
+    float oceanScale = 10.0;
+    float speed = 0.3;
+    // Construct tangent space on the sphere
+    vec3 up = abs(pos.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
+    vec3 tangent = normalize(cross(up, pos));
+    vec3 bitangent = normalize(cross(pos, tangent));
+    
+    // Sample height from 4D fractal noise
+    float h = fractalNoise(vec4(pos * oceanScale, time * speed));
+    float h_t = fractalNoise(vec4((pos + tangent * delta) * oceanScale, time * speed));
+    float h_b = fractalNoise(vec4((pos + bitangent * delta) * oceanScale, time * speed));
+
+    // Compute gradient in tangent plane
+    vec3 grad = tangent * (h_t - h) + bitangent * (h_b - h);
+    
+    // Perturb the spherical normal
+    vec3 normal = normalize(pos + grad);
+    return normal;
+}
+
+uniform vec3 cameraWorldPos;
+
 
 void main()
 {
@@ -249,12 +274,54 @@ void main()
     }
 
     fragColor = vec4(colorFromNoise, 1.0);
+    // spherePosition = normalize(pos) * (1.0 + height * test);
 
     if (length(spherePosition) < 1.0) {
-        fragColor = vec4(0.0, 0.0, 0.5, 1.0);
+        float x = (length(spherePosition) - 1.0) / test;
+        vec3 waterColor = vec3(0.0, 0.0, 1.0);
+        vec3 col1 = vec3(0.933, 0.933, 1.0);   // #EEF
+        vec3 col2 = vec3(0.133, 0.333, 0.467); // #257
+        vec3 col3 = vec3(0.067, 0.133, 0.267); // #124
+        
+        if (x >= -0.1) {
+            // interpolate between col1 and col2 from 0 → -0.1
+            float t = clamp((x - 0.0) / (-0.1 - 0.0), 0.0, 1.0);
+            waterColor = mix(col1, col2, t);
+        } else {
+            // interpolate between col2 and col3 from -0.1 → -1.0
+            float t = clamp((x - (-0.1)) / (-1.0 - (-0.1)), 0.0, 1.0);
+            waterColor = mix(col2, col3, t);
+        }
+
+        // waves using octaves of sine waves and domain warping
+        float ka = 0.1; // ambient
+        float kd = 0.9; // diffuse
+        float ks = 0.9; // specular
+
+        vec3 normal = getOceanNormal(spherePosition, time);
+        vec3 lightDir = normalize(lightPos - fragPosition);
+
+        // Phong reflection model
+        vec3 ambient = ka * waterColor.rgb;
+        vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * waterColor.rgb;
+        vec3 viewDir = normalize(cameraWorldPos - fragPosition);
+        vec3 reflectDir = reflect(-lightDir, normal);
+        vec3 specular = ks * pow(max(dot(viewDir, reflectDir), 0.0), 128.0) * vec3(1.0);
+
+        fragColor = vec4(ambient + diffuse + specular, 1.0);
+        // fragColor = vec4(normal, 1.0);
     }
     else{
-        fragColor = vec4(vec3((length(spherePosition) - 1.0 + test) / test / 2.0), 1.0);
+        float x = (length(spherePosition) - 1.0) / test;
+        if(x <= 0.25){
+            fragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        }
+        else if(x <= 0.4){
+            fragColor = vec4(0.5, 0.5, 0.5, 1.0);
+        }
+        else{
+            fragColor = vec4(1.0, 1.0, 1.0, 1.0);
+        }
+        // fragColor = vec4(vec3(0.0, 1.0 - ((length(spherePosition) - 1.0) / test), 0.0), 1.0);
     }
-
 }

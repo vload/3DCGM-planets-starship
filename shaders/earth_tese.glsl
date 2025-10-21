@@ -39,7 +39,7 @@ vec4 taylorInvSqrt(vec4 r)
   return 1.79284291400159 - 0.85373472095314 * r;
 }
 
-float snoise(vec3 v, out vec3 gradient)
+float snoise(vec3 v)//, out vec3 gradient)
 {
   const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
   const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
@@ -115,12 +115,34 @@ float snoise(vec3 v, out vec3 gradient)
 
 // Determine noise gradient
   vec4 temp = m2 * m * pdotx;
-  gradient = -8.0 * (temp.x * x0 + temp.y * x1 + temp.z * x2 + temp.w * x3);
-  gradient += m4.x * p0 + m4.y * p1 + m4.z * p2 + m4.w * p3;
-  gradient *= 105.0;
+  // gradient = -8.0 * (temp.x * x0 + temp.y * x1 + temp.z * x2 + temp.w * x3);
+  // gradient += m4.x * p0 + m4.y * p1 + m4.z * p2 + m4.w * p3;
+  // gradient *= 105.0;
 
   return 105.0 * dot(m4, pdotx);
 }
+
+// Parameters
+int OCTAVES = 5;
+float LACUNARITY = 2.0;
+float PERSISTENCE = 0.45;
+
+// Fractal 3D Simplex Noise
+float fractalNoise(vec3 p) {
+    float value = 0.0;
+    float amplitude = 1.0;
+    float frequency = 1.0;
+    float maxVal = 0.0;
+
+    for (int i = 0; i < OCTAVES; i++) {
+        value += snoise(p * frequency) * amplitude;
+        maxVal += amplitude;
+        amplitude *= PERSISTENCE;
+        frequency *= LACUNARITY;
+    }
+    return value / maxVal;
+}
+
 
 uniform float ocean_depth = 2.0;
 
@@ -138,23 +160,24 @@ void main()
 
     vec3 gradient;
     // float noise_val = snoise(spherePosition * 10, gradient);
-    float continent_noise = snoise(spherePosition * 1.5 + vec3(100.0), gradient);
-    if(continent_noise < 0.0) { // oceans
-        pos = normalize(pos) * (radius + continent_noise * ocean_depth);
-        spherePosition = pos / radius;
-        pos = normalize(pos) * (radius); // flatten ocean surface
-    }
-    else {
-        float mountain_noise = snoise(spherePosition * 3.0 + vec3(200.0), gradient);
-        mountain_noise = 2 * (1 - abs(mountain_noise)) - 1; // ridge
-        if(mountain_noise < 0.3) {
-            pos = normalize(pos) * (radius + continent_noise * test);
-            spherePosition = pos / radius;
-        }
-        else {
-            pos = normalize(pos) * (radius + continent_noise * test + mountain_noise * test);
-            spherePosition = pos / radius;
-        }
+
+    // float continent_noise = snoise(spherePosition * 1.5 + vec3(100.0), gradient);
+    // if(continent_noise < 0.0) { // oceans
+    //     pos = normalize(pos) * (radius + continent_noise * ocean_depth);
+    //     spherePosition = pos / radius;
+    //     pos = normalize(pos) * (radius); // flatten ocean surface
+    // }
+    // else {
+    //     float mountain_noise = snoise(spherePosition * 3.0 + vec3(200.0), gradient);
+    //     mountain_noise = 2 * (1 - abs(mountain_noise)) - 1; // ridge
+    //     if(mountain_noise < 0.3) {
+    //         pos = normalize(pos) * (radius + continent_noise * test);
+    //         spherePosition = pos / radius;
+    //     }
+    //     else {
+    //         pos = normalize(pos) * (radius + continent_noise * test + mountain_noise * test);
+    //         spherePosition = pos / radius;
+    //     }
     //     float ridge_noise_val = snoise(spherePosition * 0.1 , gradient);
     //     ridge_noise_val = abs(ridge_noise_val);
     //     ridge_noise_val = 1 - ridge_noise_val;
@@ -173,6 +196,14 @@ void main()
     //     // pos = normalize(pos) * (radius + noise_val * test);
         
     //     spherePosition = pos / radius;
+    // }
+    float height = fractalNoise(spherePosition * 5.0 + vec3(100.0));
+    spherePosition = normalize(pos) * (1.0 + height * test);
+    if(length(spherePosition) < 1.0) {
+        pos = normalize(pos) * radius; // flatten ocean surface
+    }
+    else{
+        pos = spherePosition * radius;
     }
 
 
