@@ -91,9 +91,13 @@ class Body {
         }
     }
 
-    virtual void draw() const { // this assumes the shader is already bound
+    virtual void set_uniforms() { // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
         glUniform1f(shader.getUniformLocation("test"), test);
+    }
+
+    virtual void draw() { // this assumes the shader is already bound
+        set_uniforms();
 
         icosahedronMesh.drawPatches(shader);
     }

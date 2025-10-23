@@ -1,27 +1,5 @@
 #version 410
 
-layout(std140) uniform Material // Must match the GPUMaterial defined in src/mesh.h
-{
-    vec3 kd;
-	vec3 ks;
-	float shininess;
-	float transparency;
-};
-
-in vec3 fragPosition;
-in vec3 fragNormal;
-in vec3 spherePosition;
-// in vec2 fragTexCoord;
-
-layout(location = 0) out vec4 fragColor;
-
-
-vec3 lightPos = vec3(10.0, 0.0, 0.0);
-uniform vec3 color = vec3(0.3, 0.3, 1.0);
-uniform float time;
-uniform float test = 0.0;
-uniform float radius = 1.0;
-
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 
 //               noise functions.
@@ -152,11 +130,29 @@ float snoise(vec4 v)
 
 }
 
+in vec3 fragPosition;
+in vec3 fragNormal;
+in vec3 spherePosition;
+in float height;
+
+layout(location = 0) out vec4 fragColor;
+
+
+uniform float ocean_level = 0.0;
+// TODO: this is not working properly yet and should be a uniform
+vec3 lightPos = vec3(0.0, 0.0, 0.0);
+uniform vec3 color = vec3(0.3, 0.3, 1.0);
+uniform float time;
+uniform float test = 0.0;
+uniform float radius = 1.0;
+
+uniform float ocean_scale = 10.0;
+uniform float ocean_speed = 0.3;
 
 // Parameters
-int OCTAVES = 5;
-float LACUNARITY = 2.0;
-float PERSISTENCE = 0.45;
+uniform int OCTAVES_water = 5;
+uniform float LACUNARITY_water = 2.0;
+uniform float PERSISTENCE_water = 0.45;
 
 // Fractal 4D Simplex Noise
 float fractalNoise(vec4 p) {
@@ -165,73 +161,29 @@ float fractalNoise(vec4 p) {
     float frequency = 1.0;
     float maxVal = 0.0;
 
-    for (int i = 0; i < OCTAVES; i++) {
+    for (int i = 0; i < OCTAVES_water; i++) {
         value += snoise(p * frequency) * amplitude;
         maxVal += amplitude;
-        amplitude *= PERSISTENCE;
-        frequency *= LACUNARITY;
+        amplitude *= PERSISTENCE_water;
+        frequency *= LACUNARITY_water;
     }
     return value / maxVal;
 }
 
-// Optional: Turbulence (absolute value)
-float turbulence(vec4 p) {
-    return abs(fractalNoise(p));
-}
-
-// Optional: Domain warping
-vec4 warp(vec4 p) {
-    float wx = fractalNoise(p * 1.5 + vec4(0.0, 0.0, 0.0, 0.0));
-    float wy = fractalNoise(p * 1.5 + vec4(100.0, 100.0, 100.0, 100.0));
-    return p + vec4(wx, wy, wx, wy) * 0.5;
-}
-
-float coloreh(vec4 pos) {
-    // Domain warp for more natural cells
-    pos = warp(pos);
-
-    // float noise_val = turbulence(pos);
-    float noise_val = fractalNoise(pos);
-
-    // Optional post-processing
-    // noise_val = noise_val * 0.5 + 0.5; // map from [-1,1] to [0,1]
-    // noise_val = pow(noise_val, 2.4); // increase contrast
-    // noise_val = noise_val * 2.5 - 1.0; // map from [0,1] to [-1,1]
-    // noise_val = clamp(noise_val, -1.0, 1.0);
-
-
-    return noise_val;
-
-    // Map [-1,1] -> [0,1]
-    // noise_val = noise_val * 0.5 + 0.5;
-
-    // // Color mapping with a smooth blend
-    // vec3 colorFromNoise;
-    // if (noise_val <= 0.5) {
-    //     float t = smoothstep(0.0, 0.5, noise_val);
-    //     colorFromNoise = mix(c0, c1, t);
-    // } else {
-    //     float t = smoothstep(0.5, 1.0, noise_val);
-    //     colorFromNoise = mix(c1, c2, t);
-    // }
-
-    // fragColor = vec4(colorFromNoise, 1.0);
-}
 
 // Computes a procedural ocean normal for a spherical planet
+// TODO: the normals are not quite right, but close enough for now
 vec3 getOceanNormal(vec3 pos, float time) {
     float delta = 0.01;
-    float oceanScale = 10.0;
-    float speed = 0.3;
     // Construct tangent space on the sphere
     vec3 up = abs(pos.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
     vec3 tangent = normalize(cross(up, pos));
     vec3 bitangent = normalize(cross(pos, tangent));
     
     // Sample height from 4D fractal noise
-    float h = fractalNoise(vec4(pos * oceanScale, time * speed));
-    float h_t = fractalNoise(vec4((pos + tangent * delta) * oceanScale, time * speed));
-    float h_b = fractalNoise(vec4((pos + bitangent * delta) * oceanScale, time * speed));
+    float h = fractalNoise(vec4(pos * ocean_scale, time * ocean_speed));
+    float h_t = fractalNoise(vec4((pos + tangent * delta) * ocean_scale, time * ocean_speed));
+    float h_b = fractalNoise(vec4((pos + bitangent * delta) * ocean_scale, time * ocean_speed));
 
     // Compute gradient in tangent plane
     vec3 grad = tangent * (h_t - h) + bitangent * (h_b - h);
@@ -242,86 +194,81 @@ vec3 getOceanNormal(vec3 pos, float time) {
 }
 
 uniform vec3 cameraWorldPos;
-
+uniform float waterKa = 0.2; // ambient
+uniform float waterKd = 0.8; // diffuse
+uniform float waterKs = 0.9; // specular
+uniform float waterShininess = 128.0;
 
 void main()
 {
-    // vec3 lightDir = normalize(lightPos - fragPosition);
-    // vec3 normal = normalize(fragNormal);
-    // float diffuse = max(dot(normal, lightDir), 0.0);
-    // fragColor = vec4(color * diffuse, 1.0);
-    // float noise_val = snoise(vec4(spherePosition * 20.0, time));
-    float noise_val = coloreh(vec4(spherePosition * 20.0, time * 0.3));
-    // noise_val changes:
-    // noise_val = noise_val * 0.5 + 0.5; // map from [-1,1] to [0,1]
-    // noise_val = noise_val * 4.0; // scale to [0,4]
-    // noise_val = pow(noise_val, 3.0); // increase contrast
-    // noise_val = clamp(noise_val, 0.0, 50.0);
-    // noise_val = noise_val / 50.0; // map from [0,50] to [0,1]
-    // noise_val = -noise_val * 2.0 + 1.0; // map from [0,1] to [-1,1]
-
-    vec3 c0 = vec3(0.5, 0.0, 0.0);
-    vec3 c1 = vec3(1.0, 0.5, 0.0);
-    vec3 c2 = vec3(1.0, 1.0, 1.0);
-
-    vec3 colorFromNoise;
-    if (noise_val <= 0.0) {
-        float t = clamp(noise_val + 1.0, 0.0, 1.0); // map [-1,0] -> [0,1]
-        colorFromNoise = mix(c0, c1, t);
-    } else {
-        float t = clamp(noise_val, 0.0, 1.0); // map [0,1] -> [0,1]
-        colorFromNoise = mix(c1, c2, t);
-    }
-
-    fragColor = vec4(colorFromNoise, 1.0);
-    // spherePosition = normalize(pos) * (1.0 + height * test);
-
-    if (length(spherePosition) < 1.0) {
-        float x = (length(spherePosition) - 1.0) / test;
+    if (height < ocean_level) {
+        float ocean_depth = ocean_level - height;
         vec3 waterColor = vec3(0.0, 0.0, 1.0);
+        
+        // TODO: gradient color based on depth (could be uniform params)
         vec3 col1 = vec3(0.933, 0.933, 1.0);   // #EEF
         vec3 col2 = vec3(0.133, 0.333, 0.467); // #257
         vec3 col3 = vec3(0.067, 0.133, 0.267); // #124
-        
-        if (x >= -0.1) {
+
+        if (ocean_depth <= 0.1) {
             // interpolate between col1 and col2 from 0 → -0.1
-            float t = clamp((x - 0.0) / (-0.1 - 0.0), 0.0, 1.0);
+            float t = clamp(ocean_depth / 0.1, 0.0, 1.0);
             waterColor = mix(col1, col2, t);
         } else {
-            // interpolate between col2 and col3 from -0.1 → -1.0
-            float t = clamp((x - (-0.1)) / (-1.0 - (-0.1)), 0.0, 1.0);
+            float t = clamp((ocean_depth - 0.1) / (1.0 + ocean_level - 0.1), 0.0, 1.0);
             waterColor = mix(col2, col3, t);
         }
 
-        // waves using octaves of sine waves and domain warping
-        float ka = 0.1; // ambient
-        float kd = 0.9; // diffuse
+        float ka = 0.2; // ambient
+        float kd = 0.8; // diffuse
         float ks = 0.9; // specular
 
         vec3 normal = getOceanNormal(spherePosition, time);
         vec3 lightDir = normalize(lightPos - fragPosition);
 
         // Phong reflection model
-        vec3 ambient = ka * waterColor.rgb;
-        vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * waterColor.rgb;
+        vec3 ambient = waterKa * waterColor.rgb;
+        vec3 diffuse = waterKd * max(dot(normal, lightDir), 0.0) * waterColor.rgb;
         vec3 viewDir = normalize(cameraWorldPos - fragPosition);
         vec3 reflectDir = reflect(-lightDir, normal);
-        vec3 specular = ks * pow(max(dot(viewDir, reflectDir), 0.0), 128.0) * vec3(1.0);
+        vec3 specular = waterKs * pow(max(dot(viewDir, reflectDir), 0.0), waterShininess) * vec3(1.0);
 
         fragColor = vec4(ambient + diffuse + specular, 1.0);
-        // fragColor = vec4(normal, 1.0);
     }
     else{
-        float x = (length(spherePosition) - 1.0) / test;
-        if(x <= 0.25){
-            fragColor = vec4(0.0, 1.0, 0.0, 1.0);
+        //TODO: maybe use materials for this, or at least blinnphong with uniforms
+        float t = (height - ocean_level) / (1.0 - ocean_level);
+        vec3 green = vec3(0.0, 1.0, 0.0);
+        vec3 gray  = vec3(0.5, 0.5, 0.5);
+        vec3 white = vec3(1.0, 1.0, 1.0);
+
+        vec3 col;
+        if (t <= 0.2) {
+            col = green;
+        } else if (t < 0.3) {
+            float s = smoothstep(0.2, 0.3, t);
+            col = mix(green, gray, s);
+        } else if (t <= 0.37) {
+            col = gray;
+        } else if (t < 0.43) {
+            float s = smoothstep(0.37, 0.43, t);
+            col = mix(gray, white, s);
+        } else {
+            col = white;
         }
-        else if(x <= 0.4){
-            fragColor = vec4(0.5, 0.5, 0.5, 1.0);
-        }
-        else{
-            fragColor = vec4(1.0, 1.0, 1.0, 1.0);
-        }
-        // fragColor = vec4(vec3(0.0, 1.0 - ((length(spherePosition) - 1.0) / test), 0.0), 1.0);
+
+        // TODO:
+        // temp phong shading (the tessellation does not provide normals yet)
+        float ka = 0.1; // ambient
+        float kd = 0.9; // diffuse
+
+        vec3 normal = spherePosition; // approximate normal on sphere
+        vec3 lightDir = normalize(lightPos - fragPosition);
+
+        // Phong reflection model
+        vec3 ambient = ka * col;
+        vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * col;
+
+        fragColor = vec4(ambient + diffuse, 1.0);
     }
 }

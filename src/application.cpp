@@ -73,9 +73,9 @@ class Application {
         }
 
         m_bodies.push_back(
-            new Earth(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh));
+            new Star(glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, m_icosaMesh));
         m_bodies.push_back(
-            new Star(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh));
+            new Earth(glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, m_icosaMesh));
         m_bodies[1]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
                               glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, m_bodies[0]);
         m_bodies.push_back(new Body(glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, m_icosaMesh));
@@ -151,6 +151,9 @@ class Application {
             ImGui::Checkbox("Use material if no texture", &m_useMaterial);
             ImGui::Checkbox("Wireframe", &m_wireframe);
             ImGui::Checkbox("Body Tessellation", &m_bodyTessellation);
+            ImGui::SliderFloat("Target Tessellation Triangle Height", 
+                               &target_tessellation_triangle_height, 1.0f,
+                               20.0f);
 
             // Render mode combo: 0 = loaded model (default), 1 = icosahedron
             static const char* meshItems[] = {"Loaded model", "Icosahedron"};
@@ -308,9 +311,14 @@ class Application {
                          glm::value_ptr(m_camera.cameraPos()));
             glUniform1i(body->shader.getUniformLocation("tessellate"),
                         m_bodyTessellation ? 1 : 0);
+            glUniform1f(body->shader.getUniformLocation("screenHeight"),
+                        (float)m_window.getWindowSize().y);
+            glUniform1f(body->shader.getUniformLocation("fov"),
+                        fov_radians);
             glUniform1f(body->shader.getUniformLocation("time"),
                         (float)glfwGetTime());
-            
+            glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
+                        target_tessellation_triangle_height);
 
             body->draw();
         }
@@ -338,8 +346,12 @@ class Application {
 
     std::vector<Body *> m_bodies;
 
+    // Tessellation control
+    float target_tessellation_triangle_height = 5.0f;
+
+    float fov_radians = glm::radians(80.0f);
     glm::mat4 m_projectionMatrix =
-        glm::perspective(glm::radians(80.0f), 1.0f, 0.1f, 1000.0f);
+        glm::perspective(fov_radians, 1.0f, 0.1f, 1000.0f);
     glm::mat4 m_modelMatrix{1.0f};
 };
 

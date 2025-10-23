@@ -1,15 +1,6 @@
 #version 410 core
 layout(triangles, equal_spacing, ccw) in;
 
-in vec3 tcsPosition[];
-out vec3 fragNormal;
-out vec3 fragPosition;
-out vec3 spherePosition;
-
-uniform mat4 mvpMatrix;
-uniform float radius = 1.0;
-uniform float test = 0.0;
-
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 
 //               noise functions.
@@ -122,10 +113,27 @@ float snoise(vec3 v)//, out vec3 gradient)
   return 105.0 * dot(m4, pdotx);
 }
 
+in vec3 tcsPosition[];
+out vec3 fragNormal;
+out vec3 fragPosition;
+out vec3 spherePosition;
+out float height;
+
+uniform mat4 mvpMatrix;
+uniform float radius = 1.0;
+uniform float test = 0.0;
+uniform float shape_noise_scale = 0.1;
+
+// Earth shape parameters
+uniform float ocean_level = 0.0;
+
+uniform float shape_noise_base_frequency = 5.0;
+uniform float shape_noise_pseudo_seed = 100.0;
+
 // Parameters
-int OCTAVES = 5;
-float LACUNARITY = 2.0;
-float PERSISTENCE = 0.45;
+uniform int OCTAVES_shape = 5;
+uniform float LACUNARITY_shape = 2.0;
+uniform float PERSISTENCE_shape = 0.45;
 
 // Fractal 3D Simplex Noise
 float fractalNoise(vec3 p) {
@@ -134,17 +142,15 @@ float fractalNoise(vec3 p) {
     float frequency = 1.0;
     float maxVal = 0.0;
 
-    for (int i = 0; i < OCTAVES; i++) {
+    for (int i = 0; i < OCTAVES_shape; i++) {
         value += snoise(p * frequency) * amplitude;
         maxVal += amplitude;
-        amplitude *= PERSISTENCE;
-        frequency *= LACUNARITY;
+        amplitude *= PERSISTENCE_shape;
+        frequency *= LACUNARITY_shape;
     }
     return value / maxVal;
 }
 
-
-uniform float ocean_depth = 2.0;
 
 void main()
 {
@@ -159,55 +165,19 @@ void main()
     spherePosition = normalize(pos);
 
     vec3 gradient;
-    // float noise_val = snoise(spherePosition * 10, gradient);
 
-    // float continent_noise = snoise(spherePosition * 1.5 + vec3(100.0), gradient);
-    // if(continent_noise < 0.0) { // oceans
-    //     pos = normalize(pos) * (radius + continent_noise * ocean_depth);
-    //     spherePosition = pos / radius;
-    //     pos = normalize(pos) * (radius); // flatten ocean surface
-    // }
-    // else {
-    //     float mountain_noise = snoise(spherePosition * 3.0 + vec3(200.0), gradient);
-    //     mountain_noise = 2 * (1 - abs(mountain_noise)) - 1; // ridge
-    //     if(mountain_noise < 0.3) {
-    //         pos = normalize(pos) * (radius + continent_noise * test);
-    //         spherePosition = pos / radius;
-    //     }
-    //     else {
-    //         pos = normalize(pos) * (radius + continent_noise * test + mountain_noise * test);
-    //         spherePosition = pos / radius;
-    //     }
-    //     float ridge_noise_val = snoise(spherePosition * 0.1 , gradient);
-    //     ridge_noise_val = abs(ridge_noise_val);
-    //     ridge_noise_val = 1 - ridge_noise_val;
-    //     ridge_noise_val = ridge_noise_val * ridge_noise_val;
-    //     // ridge_noise_val = pow(ridge_noise_val, 5.0); // gain
+    height = fractalNoise(spherePosition * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
 
-    //     if(ridge_noise_val > 0.5) {// mountains
-    //         // noise_val = pow(noise_val, ridge_noise_val * 2.0);
-    //         pos = normalize(pos) * (radius + test);
-    //     }
-    //     else{
-    //         pos = normalize(pos) * (radius + 0.1);
-    //     }
-        
-
-    //     // pos = normalize(pos) * (radius + noise_val * test);
-        
-    //     spherePosition = pos / radius;
-    // }
-    float height = fractalNoise(spherePosition * 5.0 + vec3(100.0));
-    spherePosition = normalize(pos) * (1.0 + height * test);
-    if(length(spherePosition) < 1.0) {
-        pos = normalize(pos) * radius; // flatten ocean surface
+    // spherePosition = normalize(pos) * (1.0 + height * test);
+    if(height < ocean_level){
+        pos = spherePosition * radius * (1.0 + ocean_level * shape_noise_scale); // flatten ocean surface
     }
     else{
-        pos = spherePosition * radius;
+        pos = spherePosition * radius * (1.0 + height * shape_noise_scale);
     }
 
 
-    fragNormal = normalize(pos); // TODO: compute better normal with gradient
+    fragNormal = normalize(pos); // TODO: compute better normal with gradient?
 
     gl_Position = mvpMatrix * vec4(pos, 1.0);
     fragPosition = gl_Position.xyz;

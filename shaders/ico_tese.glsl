@@ -8,7 +8,6 @@ out vec3 spherePosition;
 
 uniform mat4 mvpMatrix;
 uniform float radius = 1.0;
-// uniform float test = 0.0;
 
 void main()
 {

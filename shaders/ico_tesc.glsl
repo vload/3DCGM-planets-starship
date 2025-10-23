@@ -5,9 +5,8 @@ in vec3 vsPosition[];
 out vec3 tcsPosition[];
 
 uniform vec3 cameraWorldPos;
-uniform float tessMin = 1.0;
-uniform float tessMax = 64.0;
-uniform float lodRange = 10.0;
+float tessMin = 1.0;
+float tessMax = 64.0;
 uniform float radius = 1.0;
 uniform float targetPixelSize = 5.0; // desired triangle size in pixels
 uniform float screenHeight = 1024.0;

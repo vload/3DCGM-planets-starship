@@ -1,25 +1,5 @@
 #version 410
 
-layout(std140) uniform Material // Must match the GPUMaterial defined in src/mesh.h
-{
-    vec3 kd;
-	vec3 ks;
-	float shininess;
-	float transparency;
-};
-
-in vec3 fragPosition;
-in vec3 fragNormal;
-in vec3 spherePosition;
-// in vec2 fragTexCoord;
-
-layout(location = 0) out vec4 fragColor;
-
-
-vec3 lightPos = vec3(10.0, 0.0, 0.0);
-uniform vec3 color = vec3(0.3, 0.3, 1.0);
-uniform float time;
-
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 
 //               noise functions.
@@ -150,11 +130,22 @@ float snoise(vec4 v)
 
 }
 
+in vec3 fragPosition;
+in vec3 fragNormal;
+in vec3 spherePosition;
+
+layout(location = 0) out vec4 fragColor;
+
+vec3 lightPos = vec3(10.0, 0.0, 0.0);
+uniform float time;
+uniform float warp_noise_scale = 1.5;
+uniform float noise_scale = 20.0;
+uniform float animation_speed = 0.3;
 
 // Parameters
-int OCTAVES = 5;
-float LACUNARITY = 2.0;
-float PERSISTENCE = 0.45;
+uniform int OCTAVES = 5;
+uniform float LACUNARITY = 2.0;
+uniform float PERSISTENCE = 0.45;
 
 // Fractal 4D Simplex Noise
 float fractalNoise(vec4 p) {
@@ -174,8 +165,8 @@ float fractalNoise(vec4 p) {
 
 // Domain warping
 vec4 warp(vec4 p) {
-    float wx = fractalNoise(p * 1.5 + vec4(0.0, 0.0, 0.0, 0.0));
-    float wy = fractalNoise(p * 1.5 + vec4(100.0, 100.0, 100.0, 100.0));
+    float wx = fractalNoise(p * warp_noise_scale + vec4(0.0, 0.0, 0.0, 0.0));
+    float wy = fractalNoise(p * warp_noise_scale + vec4(100.0));
     return p + vec4(wx, wy, wx, wy) * 0.5;
 }
 
@@ -191,12 +182,13 @@ float coloreh(vec4 pos) {
 
 void main()
 {
-    float noise_val = coloreh(vec4(spherePosition * 20.0, time * 0.3));
+    float noise_val = coloreh(vec4(spherePosition * noise_scale, time * animation_speed));
 
     // interpolate colors based on noise value
-    vec3 c0 = vec3(0.5, 0.0, 0.0);
-    vec3 c1 = vec3(1.0, 0.5, 0.0);
-    vec3 c2 = vec3(1.0, 1.0, 1.0);
+    // TODO: maybe with materials, or at least uniforms.
+    vec3 c0 = vec3(0.5, 0.0, 0.0); // #800000
+    vec3 c1 = vec3(1.0, 0.5, 0.0); // #FF8000
+    vec3 c2 = vec3(1.0, 1.0, 1.0); // #FFFFFF
 
     vec3 colorFromNoise;
     if (noise_val <= 0.0) {
