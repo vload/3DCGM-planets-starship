@@ -1,2 +1,8 @@
 build
 .vscode
+
+# Ignore build output directory
+out/
+
+# Ignore Visual Studio folder
+.vs/

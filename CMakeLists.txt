@@ -14,7 +14,7 @@ add_executable(Master_TechDemo
     "src/texture.cpp"
 	"src/mesh.cpp"
 	"src/camera.cpp"
-)
+ "src/utils/ParticleSystem.cpp" "src/utils/ParticleSystem.h" "src/utils/SkyboxSystem.cpp" "src/utils/SkyboxSystem.h" "src/utils/Battlecruiser.cpp" "src/utils/Battlecruiser.h" "src/utils/ParticleSystem.cpp" "src/utils/ParticleSystem.h" "src/utils/SkyboxSystem.cpp" "src/utils/SkyboxSystem.h")
 
 target_compile_definitions(Master_TechDemo PRIVATE RESOURCE_ROOT="${CMAKE_CURRENT_LIST_DIR}/")
 target_compile_features(Master_TechDemo PRIVATE cxx_std_20)
