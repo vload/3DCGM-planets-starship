@@ -48,15 +48,27 @@ Battlecruiser::Battlecruiser() {
 
         meshGLs.push_back(m);
     }
+
+    mainShader =
+        ShaderBuilder()
+            .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
+                        "shaders/battlecruiser/shader_vert.glsl")
+            .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
+                        "shaders/battlecruiser/shader_frag.glsl")
+            .build();
+    reflectiveShader =
+        ShaderBuilder()
+            .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
+                        "shaders/battlecruiser/shader_vert.glsl")
+            .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
+                        "shaders/battlecruiser/glass_shader_frag.glsl")
+            .build();
 }
 
-void Battlecruiser::draw(const glm::mat4& model,
-    const glm::mat4& view,
+void Battlecruiser::draw(const glm::mat4& view,
     const glm::mat4& projection,
     const glm::vec3& lightPos,
     const glm::vec3& cameraPos,
-    const Shader& mainShader,
-    const Shader& reflectiveShader,
     unsigned int cubemapTexture)
 {
     // --- Setup once per frame ---
@@ -69,12 +81,14 @@ void Battlecruiser::draw(const glm::mat4& model,
         4.5f
     };
 
-    glDisable(GL_CULL_FACE);
+    // Disable face culling to render inside the windows
+    glDisable(GL_CULL_FACE); 
 
     // --- Pass 1: opaque meshes ---
     mainShader.bind();
 
-    glUniformMatrix4fv(mainShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(model));
+    glUniformMatrix4fv(mainShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(modelMatrix));
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
@@ -95,8 +109,7 @@ void Battlecruiser::draw(const glm::mat4& model,
     }
 
     // --- Pass 2: reflective meshes ---
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    // Skip depth testing to avoid artifacts inside the windows
     glDepthMask(GL_FALSE);
 
     reflectiveShader.bind();
@@ -106,8 +119,8 @@ void Battlecruiser::draw(const glm::mat4& model,
     glUniform1i(reflectiveShader.getUniformLocation("environmentMap"), 0);
     glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
-    glm::mat4 mvp = projection * view * model;
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(model));
+    glm::mat4 mvp = projection * view * modelMatrix;
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
@@ -117,10 +130,6 @@ void Battlecruiser::draw(const glm::mat4& model,
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
         }
     }
-
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
-    glEnable(GL_CULL_FACE);
 }
 
 

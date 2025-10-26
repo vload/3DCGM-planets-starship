@@ -1,0 +1,36 @@
+[window]
+title = "Final Project"
+initial_width = 1280
+initial_height = 720
+
+[camera]
+fov = 80 # this is in degrees
+[camera.freecam]
+initial_position = [5.0, 0.0, 0.0]
+initial_forward = [-1.0, 0.0, 0.0]
+move_speed = 0.2
+look_speed = 0.005                 # this is basically sensitivity
+# [camera.battlecruiser]
+
+# [camera.minimap]
+
+[planets]
+ico_mesh_resolution = 5
+# TODO: add star params
+# TODO: add earth params
+# TODO: add default solar system parameters like so:
+# planets = [
+# # example entries:
+# # [type, radius, parent_id = -1, [pos.x, pos.y, pos.z]] -> no orbit, static planet OR
+# # [type, radius, parent_id, orbit_direction, orbit_small_r, orbit_large_r, orbit_normal, orbit_period]
+#     ["star", 4.0, -1, [0.0, 0.0, 0.0]],
+#     ["earth", 1.0, 0, [1.0, 0.0, 0.0], 30.0, 40.0, [0.0, 1.0, 0.0], 10.0],
+# ]
+
+[skybox]
+# TODO: skybox paths could go here
+
+[battlecruiser]
+# TODO: battlecruiser model path could go here
+[battlecruiser.thrusters]
+# TODO: battlecruiser thruster particle params could go here

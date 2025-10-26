@@ -1,10 +1,11 @@
 #pragma once
-#include "Body.h"
+#include "scene/bodies/Body.h"
 
 class Earth : public Body {
    public:
-    Earth(const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
-        : Body(pos, r, icosahedron_mesh) {}
+    // TODO: load earth params from config instead of insane imgui
+    Earth(Config& config, const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
+        : Body(config, pos, r, icosahedron_mesh) {}
 
     void setup() {
         ShaderBuilder earthBuilder;

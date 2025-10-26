@@ -2,7 +2,6 @@
 #include <framework/disable_all_warnings.h>
 #include <framework/shader.h>
 
-#include "mesh.h"
 DISABLE_WARNINGS_PUSH()
 #include <imgui/imgui.h>
 
@@ -11,12 +10,16 @@ DISABLE_WARNINGS_PUSH()
 DISABLE_WARNINGS_POP()
 #include <iostream>
 
-// This is a planet
-// TODO: create a Planet class that inherits from Body, and also Star maybe
-// Asteroid / moon? IDK
+#include "core/mesh.h"
+#include "core/config.h"
+
+float target_body_tessellation_triangle_height = 5.0f;
+bool enable_body_tessellation = true;
+
+// This is a planet / star / space body base class with primitive default behavior.
 class Body {
    public:
-    Body(const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
+    Body(Config& config, const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
         : position(pos), radius(r), icosahedronMesh(icosahedron_mesh) {}
 
     glm::vec3 getPosition() const { return position; }
@@ -69,6 +72,10 @@ class Body {
 
     virtual void imGuiControl() {
         // ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
+        ImGui::Checkbox("Body Tessellation", &enable_body_tessellation);
+        ImGui::SliderFloat("Target Body Tessellation Triangle Height",
+            &target_body_tessellation_triangle_height, 1.0f, 20.0f);
+        
         ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 10.0f, "%.2f");
         ImGui::SliderFloat("Test", &test, 0.0f, 2.00f, "%.3f");
         ImGui::Separator();
@@ -94,9 +101,24 @@ class Body {
     virtual void set_uniforms() { // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
         glUniform1f(shader.getUniformLocation("test"), test);
+        glUniform1i(shader.getUniformLocation("tessellate"),
+                    enable_body_tessellation);
+        glUniform1f(shader.getUniformLocation("targetPixelSize"),
+                    target_body_tessellation_triangle_height);
     }
 
-    virtual void draw() { // this assumes the shader is already bound
+    virtual void draw(
+        glm::mat4 viewMatrix,
+        glm::mat4 projectionMatrix, 
+        glm::vec3 cameraPos) { // this assumes the shader is already bound
+        shader.bind();
+        glm::mat4 modelMatrix = get_model_matrix();
+        glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
+        glUniformMatrix4fv(shader.getUniformLocation("mvpMatrix"), 1, GL_FALSE,
+                           glm::value_ptr(mvp));
+        glUniform3fv(shader.getUniformLocation("cameraWorldPos"), 1,
+                     glm::value_ptr(cameraPos));
+
         set_uniforms();
 
         icosahedronMesh.drawPatches(shader);

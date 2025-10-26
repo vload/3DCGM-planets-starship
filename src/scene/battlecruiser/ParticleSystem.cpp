@@ -52,6 +52,13 @@ ParticleSystem::ParticleSystem(int maxParticles)
     glVertexAttribDivisor(2, 1);
 
     glBindVertexArray(0);
+
+    shader = ShaderBuilder()
+                 .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
+                           "shaders/battlecruiser/particle_vertex.glsl")
+                 .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
+                           "shaders/battlecruiser/particle_frag.glsl")
+                 .build();
 }
 
 ParticleSystem::~ParticleSystem() {
@@ -156,12 +163,10 @@ void ParticleSystem::update(const glm::mat4& model,float dt, const glm::vec3& ca
     _aliveCount = count;
 }
 
-void ParticleSystem::draw(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const Shader& shader) {
+void ParticleSystem::draw(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model) {
     glm::vec3 camRight(view[0][0], view[1][0], view[2][0]);
     glm::vec3 camUp(view[0][1], view[1][1], view[2][1]);
 
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
 
     shader.bind();
@@ -191,7 +196,4 @@ void ParticleSystem::draw(const glm::mat4& view, const glm::mat4& projection, co
     }
 
     glBindVertexArray(0);
-
-    glDepthMask(GL_TRUE);
-    glDisable(GL_BLEND);
 }

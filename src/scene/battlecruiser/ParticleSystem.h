@@ -34,7 +34,7 @@ public:
 
     void spawn(const glm::vec3& origin, const glm::vec3& speed, const glm::vec2& colorR, const glm::vec2& colorG, const glm::vec2& colorB, float coneAngle, float life, float lifeDeviation, float size, float sizeDeviation);
     void update(const glm::mat4& model, float dt, const glm::vec3& camPos, const glm::vec3& speed, float lifeThreshold);
-    void draw(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model, const Shader& shader);
+    void draw(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
 
 private:
     int findUnusedParticle();
@@ -48,6 +48,8 @@ private:
     GLuint _vboBillboard = 0;
     GLuint _vboPositions = 0;
     GLuint _vboColors = 0;
+
+    Shader shader;
 
     std::vector<GLfloat> _posSizeData;
     std::vector<GLubyte> _colorData;

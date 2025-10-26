@@ -13,13 +13,10 @@ public:
     Battlecruiser();
     ~Battlecruiser();
 
-    void draw(const glm::mat4& model,
-        const glm::mat4& view,
+    void draw(const glm::mat4& view,
         const glm::mat4& projection,
         const glm::vec3& lightPos,
         const glm::vec3& cameraPos,
-        const Shader& mainShader,
-        const Shader& reflectiveShader,
         unsigned int cubemapTexture);
     std::vector<glm::vec3> getRelativePositionThrusters();
     glm::mat4 getModelMatrix();
@@ -34,6 +31,9 @@ private:
         glm::vec3(4.5f, 4.0f, -22.0f),
         glm::vec3(-4.5f, 4.0f, -22.0f)
     };
+
+    Shader mainShader;
+    Shader reflectiveShader;
 
     std::vector<MeshGL> meshGLs;
     LightParticle thruster;
