@@ -19,6 +19,7 @@ in vec4 fragWorldPos;
 in vec3 fragPos; // World-space position
 in vec3 fragNormal; // World-space normal
 
+// TODO: maybe change this to hardbaked shadowmap
 float computeThrusterLight(vec3 fragPos)
 {
     // Distance attenuation
@@ -56,6 +57,7 @@ void main()
     vec3 thrusterContribution = thrusterLightColor * thrusterFactor;
 
     // Combine both lights
+    // TODO see how this will combine with better shading multiple source of lights, shadows, etc
     vec3 finalColor = baseLight + thrusterContribution;
 
     outColor = vec4(finalColor, 1.0);
