@@ -37,7 +37,7 @@ static Mesh makeGeodesicIcosahedronMesh(int frequency);
 class Application {
    public:
     Application()
-        : m_window("Final Project", glm::ivec2(WIDTH, HEIGHT),
+        : m_window("Final Project", glm::ivec2(WIDTH_WINDOW, HEIGHT_WINDOW),
                    OpenGLVersion::GL41),
           m_texture(RESOURCE_ROOT "resources/checkerboard.png"),
           m_camera(&m_window) {
@@ -59,6 +59,27 @@ class Application {
             });
         m_window.registerScrollCallback(
             [this](const glm::vec2& offset) { onMouseScroll(offset); });
+        m_window.registerWindowResizeCallback(
+            [this](glm::ivec2 newSize) {
+                std::cout << "Window resized to: " << newSize.x << "x" << newSize.y << std::endl;
+
+                glm::ivec2 frameBufferSize = m_window.getFrameBufferSize();
+
+                aspect_window = static_cast<float>(frameBufferSize.x) / frameBufferSize.y;
+                width_frame_window = frameBufferSize.x;
+                height_frame_window = frameBufferSize.y;
+
+                m_projectionMatrix = glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
+            }
+        );
+
+        glm::ivec2 frameBufferSize = m_window.getFrameBufferSize();
+
+        aspect_window = static_cast<float>(frameBufferSize.x) / frameBufferSize.y;
+        width_frame_window = frameBufferSize.x;
+        height_frame_window = frameBufferSize.y;
+
+        m_projectionMatrix = glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
 
         // Load model meshes (from file) and also create a hardcoded icosahedron
         // mesh
@@ -119,8 +140,6 @@ class Application {
             particleShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/particle_vertex.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/particle_frag.glsl").build();
             skyboxShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/skybox_vert.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/skybox_frag.glsl").build();
 
-            lastTimeBattlecruiser = glfwGetTime();
-
             // Any new shaders can be added below in similar fashion.
             // ==> Don't forget to reconfigure CMake when you do!
             //     Visual Studio: PROJECT => Generate Cache for ComputerGraphics
@@ -135,6 +154,7 @@ class Application {
         int dummyInteger = 0;  // Initialized to 0
         int selected_body = 0;
         static double lastTime = glfwGetTime();
+
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
@@ -217,7 +237,7 @@ class Application {
 
             ImGui::End();
 
-            renderFrame();
+            renderFrame(deltaTime);
 
             // Processes input and swaps the window buffer
             m_window.swapBuffers();
@@ -272,50 +292,31 @@ class Application {
     }
 
     // Render the current frame (clears, sets states, and draws selected meshes)
-    void renderFrame() {
+    void renderFrame(double deltaTime) {
         // Simple dispatcher: call the appropriate full-mode renderer
         if (m_renderMode == 0) {
             renderDefault();
         } else {
-            renderIco();
+            renderIco(deltaTime);
         }
     }
 
     // Full default renderer: clears and renders all loaded model meshes
     // (matches original behavior)
     void renderDefault() {
-        glViewport(0, 0, WIDTH, HEIGHT);
+        glViewport(0, 0, width_frame_window, height_frame_window);
         glClearDepth(1.0);
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
-        glDisable(GL_CULL_FACE);
-
-        double currentTime = glfwGetTime();
-        float dt = static_cast<float>(currentTime - lastTimeBattlecruiser);
-        lastTimeBattlecruiser = currentTime;
-
-        float particlesPerSecond = 1000.0f;
-        int newParticles = static_cast<int>(dt * particlesPerSecond);
-        if (newParticles > 500)
-            newParticles = 500;
-
-        for (int i = 0; i < newParticles; ++i) {
-            for (int j = 0; j < battlecruiser.getRelativePositionThrusters().size(); j++) {
-                particles.spawn(battlecruiser.getRelativePositionThrusters()[j], speedInitParticle, colorR, colorG, colorB, coneAngle, life, lifeDeviation, size, sizeDeviation);
-            }
-        }
-
-        particles.update(battlecruiser.getModelMatrix(), dt, m_camera.cameraPos(), speedParticle, lifeThreshold);
-        particles.draw(m_camera.viewMatrix(), m_projectionMatrix, battlecruiser.getModelMatrix(), particleShader);
-
+        glEnable(GL_CULL_FACE);
     }
 
     // Full icosahedron renderer: clears and renders the procedural icosahedron
     // meshes (wireframe respected)
-    void renderIco() {
+    void renderIco(double deltaTime) {
         // Clear the screen (keep same background as default)
-        glViewport(0, 0, WIDTH, HEIGHT);
+        glViewport(0, 0, width_frame_window, height_frame_window);
         glClearDepth(1.0);
         glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -324,8 +325,7 @@ class Application {
         glPatchParameteri(GL_PATCH_VERTICES, 3);
 
         // -- Pass skybox ---
-        glm::mat4 projection = glm::perspective(fov_radians, (float)WIDTH / HEIGHT, 0.1f, 100.0f);
-        skyboxSystem.draw(m_camera.viewMatrix(), projection, skyboxShader);
+        skyboxSystem.draw(m_camera.viewMatrix(), m_projectionMatrix, skyboxShader);
         
         glClear(GL_DEPTH_BUFFER_BIT);
 
@@ -367,12 +367,8 @@ class Application {
             battlecruiser.draw(battlecruiser.getModelMatrix(), m_camera.viewMatrix(), m_projectionMatrix, glm::vec3(0.0f), m_camera.cameraPos(), battlecruiserShader, battlecruiserReflectiveShader, skyboxSystem.getCubemapTexture());
 
             // --- Pass: battlecruiser Particles ---
-            double currentTime = glfwGetTime();
-            float dt = static_cast<float>(currentTime - lastTimeBattlecruiser);
-            lastTimeBattlecruiser = currentTime;
-
             float particlesPerSecond = 1000.0f;
-            int newParticles = static_cast<int>(dt * particlesPerSecond);
+            int newParticles = static_cast<int>(deltaTime * particlesPerSecond);
             if (newParticles > 500)
                 newParticles = 500;
 
@@ -382,14 +378,18 @@ class Application {
                 }
             }
 
-            particles.update(battlecruiser.getModelMatrix(), dt, m_camera.cameraPos(), speedParticle, lifeThreshold);
+            particles.update(battlecruiser.getModelMatrix(), deltaTime, m_camera.cameraPos(), speedParticle, lifeThreshold);
             particles.draw(m_camera.viewMatrix(), m_projectionMatrix, battlecruiser.getModelMatrix(), particleShader);
         }
     }
 
    private:
-       const int WIDTH = 1080;
-       const int HEIGHT = 1080;
+    const int WIDTH_WINDOW = 1080;
+    const int HEIGHT_WINDOW = 1080;
+
+    float aspect_window = 1.0f;
+    int width_frame_window = 0;
+    int height_frame_window = 0;
 
     Window m_window;
 
@@ -421,7 +421,6 @@ class Application {
     float lifeThreshold = 1.0f;
     float size = 1.0f;
     float sizeDeviation = 1.0f;
-    double lastTimeBattlecruiser;
 
     // Keep separate collections for model meshes and the procedurally created
     // icosahedron
@@ -440,7 +439,7 @@ class Application {
 
     float fov_radians = glm::radians(80.0f);
     glm::mat4 m_projectionMatrix =
-        glm::perspective(fov_radians, 1.0f, 0.1f, 1000.0f);
+        glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
     glm::mat4 m_modelMatrix{1.0f};
 };
 
