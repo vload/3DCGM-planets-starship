@@ -10,6 +10,7 @@ DISABLE_WARNINGS_POP()
 #include <optional>
 #include <span>
 #include <vector>
+#include <glad/glad.h>
 
 struct Vertex {
 	glm::vec3 position;
@@ -31,6 +32,7 @@ struct Material {
 	//   material.kdTexture->getTexel(...);
 	// }
 	std::shared_ptr<Image> kdTexture;
+	std::string name;
 };
 
 struct Mesh {
@@ -40,6 +42,14 @@ struct Mesh {
 	std::vector<glm::uvec3> triangles;
 
 	Material material;
+};
+
+struct MeshGL {
+	GLuint vao = 0;
+	GLuint vbo = 0;
+	GLuint ibo = 0;
+	size_t indexCount = 0;
+	std::string materialName;
 };
 
 struct LoadMeshSettings {

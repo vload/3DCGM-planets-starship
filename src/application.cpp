@@ -28,6 +28,8 @@ DISABLE_WARNINGS_POP()
 #include <functional>
 #include <iostream>
 #include <vector>
+#include "utils/Battlecruiser.h"
+#include "utils/SkyboxSystem.h"
 
 // Forward declaration for the helper defined below
 static Mesh makeGeodesicIcosahedronMesh(int frequency);
@@ -35,7 +37,7 @@ static Mesh makeGeodesicIcosahedronMesh(int frequency);
 class Application {
    public:
     Application()
-        : m_window("Final Project", glm::ivec2(1024, 1024),
+        : m_window("Final Project", glm::ivec2(WIDTH_WINDOW, HEIGHT_WINDOW),
                    OpenGLVersion::GL41),
           m_texture(RESOURCE_ROOT "resources/checkerboard.png"),
           m_camera(&m_window) {
@@ -57,6 +59,27 @@ class Application {
             });
         m_window.registerScrollCallback(
             [this](const glm::vec2& offset) { onMouseScroll(offset); });
+        m_window.registerWindowResizeCallback(
+            [this](glm::ivec2 newSize) {
+                std::cout << "Window resized to: " << newSize.x << "x" << newSize.y << std::endl;
+
+                glm::ivec2 frameBufferSize = m_window.getFrameBufferSize();
+
+                aspect_window = static_cast<float>(frameBufferSize.x) / frameBufferSize.y;
+                width_frame_window = frameBufferSize.x;
+                height_frame_window = frameBufferSize.y;
+
+                m_projectionMatrix = glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
+            }
+        );
+
+        glm::ivec2 frameBufferSize = m_window.getFrameBufferSize();
+
+        aspect_window = static_cast<float>(frameBufferSize.x) / frameBufferSize.y;
+        width_frame_window = frameBufferSize.x;
+        height_frame_window = frameBufferSize.y;
+
+        m_projectionMatrix = glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
 
         // Load model meshes (from file) and also create a hardcoded icosahedron
         // mesh
@@ -112,6 +135,11 @@ class Application {
                                 RESOURCE_ROOT "shaders/ico_frag.glsl");
             m_icoShader = icoBuilder.build();
 
+            battlecruiserShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/shader_vert.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/shader_frag.glsl").build();
+            battlecruiserReflectiveShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/shader_vert.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/glass_shader_frag.glsl").build();
+            particleShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/particle_vertex.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/particle_frag.glsl").build();
+            skyboxShader = ShaderBuilder().addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/skybox_vert.glsl").addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/skybox_frag.glsl").build();
+
             // Any new shaders can be added below in similar fashion.
             // ==> Don't forget to reconfigure CMake when you do!
             //     Visual Studio: PROJECT => Generate Cache for ComputerGraphics
@@ -126,6 +154,7 @@ class Application {
         int dummyInteger = 0;  // Initialized to 0
         int selected_body = 0;
         static double lastTime = glfwGetTime();
+
         while (!m_window.shouldClose()) {
             // This is your game loop
             // Put your real-time logic and rendering in here
@@ -141,33 +170,74 @@ class Application {
 
             // Use ImGui for easy input/output of ints, floats, strings, etc...
             ImGui::Begin("Window");
-            ImGui::InputInt(
-                "This is an integer input",
-                &dummyInteger);  // Use ImGui::DragInt or ImGui::DragFloat for
-                                 // larger range of numbers.
-            ImGui::Text("Value is: %i",
-                        dummyInteger);  // Use C printf formatting rules (%i is
-                                        // a signed integer)
-            ImGui::Checkbox("Use material if no texture", &m_useMaterial);
-            ImGui::Checkbox("Wireframe", &m_wireframe);
-            ImGui::Checkbox("Body Tessellation", &m_bodyTessellation);
-            ImGui::SliderFloat("Target Tessellation Triangle Height", 
-                               &target_tessellation_triangle_height, 1.0f,
-                               20.0f);
 
-            // Render mode combo: 0 = loaded model (default), 1 = icosahedron
-            static const char* meshItems[] = {"Loaded model", "Icosahedron"};
-            ImGui::Combo("Render Mode", &m_renderMode, meshItems,
-                         IM_ARRAYSIZE(meshItems));
+            if (m_renderMode == 0) {
+                // --- Debug Mode GUI settings ---
+ 
+                // Render mode combo: 0 = loaded model (default), 1 = icosahedron
+                static const char* meshItems[] = { "Loaded model", "Icosahedron" };
+                ImGui::Combo("Render Mode", &m_renderMode, meshItems,
+                    IM_ARRAYSIZE(meshItems));
+            }
+            else {
+                // --- Planets Mode GUI settings ---
+                ImGui::InputInt(
+                    "This is an integer input",
+                    &dummyInteger);  // Use ImGui::DragInt or ImGui::DragFloat for
+                // larger range of numbers.
+                ImGui::Text("Value is: %i",
+                    dummyInteger);  // Use C printf formatting rules (%i is
+                // a signed integer)
+                ImGui::Checkbox("Use material if no texture", &m_useMaterial);
+                ImGui::Checkbox("Wireframe", &m_wireframe);
+                ImGui::Checkbox("Body Tessellation", &m_bodyTessellation);
+                ImGui::SliderFloat("Target Tessellation Triangle Height",
+                    &target_tessellation_triangle_height, 1.0f,
+                    20.0f);
 
-            ImGui::Separator();
-            ImGui::SliderInt("Selected Body", &selected_body, 0,
-                             (int)m_bodies.size() - 1);
-            m_bodies[selected_body]->imGuiControl();
+                // Render mode combo: 0 = loaded model (default), 1 = icosahedron
+                static const char* meshItems[] = { "Loaded model", "Icosahedron" };
+                ImGui::Combo("Render Mode", &m_renderMode, meshItems,
+                    IM_ARRAYSIZE(meshItems));
+
+                ImGui::Separator();
+                ImGui::SliderInt("Selected Body", &selected_body, 0,
+                    (int)m_bodies.size() - 1);
+                m_bodies[selected_body]->imGuiControl();
+
+                ImGui::Separator();
+
+                // --- Particle Speed ---
+                ImGui::Text("Particle Speed");
+                ImGui::DragFloat3("Speed Init (x, y, z)", glm::value_ptr(speedInitParticle), 0.1f, -10.0f, 10.0f);
+                ImGui::DragFloat3("Speed (x, y, z)", glm::value_ptr(speedParticle), 0.1f, -10.0f, 10.0f);
+
+                // --- Color Ranges ---
+                ImGui::Separator();
+                ImGui::Text("Color Range (RGB Min/Max)");
+                ImGui::DragFloat2("Red Range", glm::value_ptr(colorR), 1.0f, 0.0f, 255.0f);
+                ImGui::DragFloat2("Green Range", glm::value_ptr(colorG), 1.0f, 0.0f, 255.0f);
+                ImGui::DragFloat2("Blue Range", glm::value_ptr(colorB), 1.0f, 0.0f, 255.0f);
+
+                // --- Cone Angle ---
+                ImGui::Separator();
+                ImGui::Text("Emission Cone");
+                ImGui::SliderFloat("Cone Angle", &coneAngle, 0.0f, 180.0f, "%.1f deg");
+
+                // --- Life & Size ---
+                ImGui::Separator();
+                ImGui::Text("Particle Properties");
+                ImGui::DragFloat("Life", &life, 0.1f, 0.0f, 10.0f);
+                ImGui::DragFloat("Life Deviation", &lifeDeviation, 0.1f, 0.0f, 10.0f);
+                ImGui::DragFloat("Life Threshold", &lifeThreshold, 0.1f, 0.1f, 10.0f);
+
+                ImGui::DragFloat("Size", &size, 0.1f, 0.0f, 10.0f);
+                ImGui::DragFloat("Size Deviation", &sizeDeviation, 0.1f, 0.0f, 10.0f);
+            }
 
             ImGui::End();
 
-            renderFrame();
+            renderFrame(deltaTime);
 
             // Processes input and swaps the window buffer
             m_window.swapBuffers();
@@ -222,73 +292,42 @@ class Application {
     }
 
     // Render the current frame (clears, sets states, and draws selected meshes)
-    void renderFrame() {
+    void renderFrame(double deltaTime) {
         // Simple dispatcher: call the appropriate full-mode renderer
         if (m_renderMode == 0) {
             renderDefault();
         } else {
-            renderIco();
+            renderIco(deltaTime);
         }
     }
 
     // Full default renderer: clears and renders all loaded model meshes
     // (matches original behavior)
     void renderDefault() {
-        // Clear the screen
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glViewport(0, 0, width_frame_window, height_frame_window);
+        glClearDepth(1.0);
+        glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
         glEnable(GL_DEPTH_TEST);
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-        
-        const glm::mat4 mvpMatrix =
-            m_projectionMatrix * m_camera.viewMatrix() * m_modelMatrix;
-        // Normals should be transformed differently than positions (ignoring
-        // translations + dealing with scaling):
-        // https://paroj.github.io/gltut/Illumination/Tut09%20Normal%20Transformation.html
-        const glm::mat3 normalModelMatrix =
-            glm::inverseTranspose(glm::mat3(m_modelMatrix));
-
-        for (GPUMesh& mesh : m_modelMeshes) {
-            // Bind shader and upload matrices
-            m_defaultShader.bind();
-            glUniformMatrix4fv(m_defaultShader.getUniformLocation("mvpMatrix"),
-                               1, GL_FALSE, glm::value_ptr(mvpMatrix));
-            // Uncomment this line when you use the modelMatrix (or
-            // fragmentPosition)
-            // glUniformMatrix4fv(m_defaultShader.getUniformLocation("modelMatrix"),
-            // 1, GL_FALSE, glm::value_ptr(m_modelMatrix));
-            glUniformMatrix3fv(
-                m_defaultShader.getUniformLocation("normalModelMatrix"), 1,
-                GL_FALSE, glm::value_ptr(normalModelMatrix));
-
-            // Material / texture handling and draw (inlined)
-            if (mesh.hasTextureCoords()) {
-                m_texture.bind(GL_TEXTURE0);
-                glUniform1i(m_defaultShader.getUniformLocation("colorMap"), 0);
-                glUniform1i(m_defaultShader.getUniformLocation("hasTexCoords"),
-                            GL_TRUE);
-                glUniform1i(m_defaultShader.getUniformLocation("useMaterial"),
-                            GL_FALSE);
-            } else {
-                glUniform1i(m_defaultShader.getUniformLocation("hasTexCoords"),
-                            GL_FALSE);
-                glUniform1i(m_defaultShader.getUniformLocation("useMaterial"),
-                            m_useMaterial);
-            }
-            mesh.draw(m_defaultShader);
-        }
+        glEnable(GL_CULL_FACE);
     }
 
     // Full icosahedron renderer: clears and renders the procedural icosahedron
     // meshes (wireframe respected)
-    void renderIco() {
+    void renderIco(double deltaTime) {
         // Clear the screen (keep same background as default)
-        glClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+        glViewport(0, 0, width_frame_window, height_frame_window);
+        glClearDepth(1.0);
+        glClearColor(0.1f, 0.2f, 0.3f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glEnable(GL_CULL_FACE);
         glEnable(GL_DEPTH_TEST);
         glPatchParameteri(GL_PATCH_VERTICES, 3);
-        glEnable(GL_CULL_FACE);
+
+        // -- Pass skybox ---
+        skyboxSystem.draw(m_camera.viewMatrix(), m_projectionMatrix, skyboxShader);
+        
+        glClear(GL_DEPTH_BUFFER_BIT);
 
         // Respect wireframe toggle
         if (m_wireframe) {
@@ -322,10 +361,38 @@ class Application {
 
             body->draw();
         }
+
+        {
+            // --- Pass: battlecruiser mesh ---
+            battlecruiser.draw(battlecruiser.getModelMatrix(), m_camera.viewMatrix(), m_projectionMatrix, glm::vec3(0.0f), m_camera.cameraPos(), battlecruiserShader, battlecruiserReflectiveShader, skyboxSystem.getCubemapTexture());
+
+            // --- Pass: battlecruiser Particles ---
+            float particlesPerSecond = 1000.0f;
+            int newParticles = static_cast<int>(deltaTime * particlesPerSecond);
+            if (newParticles > 500)
+                newParticles = 500;
+
+            for (int i = 0; i < newParticles; ++i) {
+                for (int j = 0; j < battlecruiser.getRelativePositionThrusters().size(); j++) {
+                    particles.spawn(battlecruiser.getRelativePositionThrusters()[j], speedInitParticle, colorR, colorG, colorB, coneAngle, life, lifeDeviation, size, sizeDeviation);
+                }
+            }
+
+            particles.update(battlecruiser.getModelMatrix(), deltaTime, m_camera.cameraPos(), speedParticle, lifeThreshold);
+            particles.draw(m_camera.viewMatrix(), m_projectionMatrix, battlecruiser.getModelMatrix(), particleShader);
+        }
     }
 
    private:
+    const int WIDTH_WINDOW = 1080;
+    const int HEIGHT_WINDOW = 1080;
+
+    float aspect_window = 1.0f;
+    int width_frame_window = 0;
+    int height_frame_window = 0;
+
     Window m_window;
+
     Camera m_camera;
 
     // Shader for default rendering and for depth rendering
@@ -333,6 +400,27 @@ class Application {
     Shader m_shadowShader;
     // Shader with tessellation for rendering the bodies
     Shader m_icoShader;
+
+    Shader battlecruiserShader;
+    Shader battlecruiserReflectiveShader;
+    Shader particleShader;
+    Shader skyboxShader;
+
+    Battlecruiser battlecruiser;
+    SkyboxSystem skyboxSystem;
+    ParticleSystem particles;
+
+    glm::vec3 speedInitParticle = glm::vec3(0.0f, 0.0f, 2.5f);
+    glm::vec3 speedParticle = glm::vec3(0.0f, 0.0f, -8.5f);
+    glm::vec2 colorR = glm::vec2(233.0f, 255.f);
+    glm::vec2 colorG = glm::vec2(165.0f, 255.f);
+    glm::vec2 colorB = glm::vec2(0.0f, 0.0f);
+    float coneAngle = 50.0f;
+    float life = 2.0f;
+    float lifeDeviation = 2.0f;
+    float lifeThreshold = 1.0f;
+    float size = 1.0f;
+    float sizeDeviation = 1.0f;
 
     // Keep separate collections for model meshes and the procedurally created
     // icosahedron
@@ -351,7 +439,7 @@ class Application {
 
     float fov_radians = glm::radians(80.0f);
     glm::mat4 m_projectionMatrix =
-        glm::perspective(fov_radians, 1.0f, 0.1f, 1000.0f);
+        glm::perspective(fov_radians, aspect_window, 0.1f, 1000.0f);
     glm::mat4 m_modelMatrix{1.0f};
 };
 
