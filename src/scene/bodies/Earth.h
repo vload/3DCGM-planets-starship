@@ -81,7 +81,7 @@ class Earth : public Body {
     int shape_noise_octaves = 5;
     float shape_noise_lacunarity = 2.0f;
     float shape_noise_persistence = 0.45f;
-    float shape_noise_base_frequency = 5.0f;
+    float shape_noise_base_frequency = 1.2f;
     float ocean_level = 0.0f;
     float shape_noise_pseudo_seed = 100.0f;
     float shape_noise_scale = 0.1f;
@@ -91,8 +91,8 @@ class Earth : public Body {
     float water_noise_persistence = 0.45f;
     float ocean_scale = 10.0f;
     float ocean_speed = 0.3f;
-    float waterKa = 0.2f;
-    float waterKd = 0.8f;
+    float waterKa = 0.1f;
+    float waterKd = 0.9f;
     float waterKs = 0.9f;
     float waterShininess = 128.0f;
 };

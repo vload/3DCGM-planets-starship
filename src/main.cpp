@@ -27,10 +27,7 @@ DISABLE_WARNINGS_POP()
 #include "core/config.h"
 #include "core/mesh.h"
 #include "scene/Skybox.h"
-#include "scene/bodies/Body.h"
-#include "scene/bodies/Earth.h"
-#include "scene/bodies/Star.h"
-#include "scene/bodies/ico_mesh.h"
+#include "scene/bodies/PlanetSystem.h"
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
 #include "scene/battlecruiser/Battlecruiser.h"
@@ -131,34 +128,7 @@ int main() {
 
     /// ---- Scene setup
     /// -- Planets
-    GPUMesh ico_mesh{Mesh{}};
-    try {
-        Mesh ico_mesh_cpu =
-            generate_ico_mesh(config.planets_ico_mesh_resolution);
-        ico_mesh = GPUMesh(ico_mesh_cpu);
-    } catch (const std::exception& e) {
-        std::cerr << "Failed to create icosahedron GPUMesh: " << e.what()
-                  << std::endl;
-        return EXIT_FAILURE;
-    }
-
-    std::vector<Body*> bodies;
-    int selected_body = 0;
-    // TODO: load bodies from config
-    bodies.push_back(
-        new Star(config, glm::vec3(0.0f, 0.0f, 0.0f), 4.0f, ico_mesh));
-    bodies.push_back(
-        new Earth(config, glm::vec3(0.0f, 0.0f, 0.0f), 1.0f, ico_mesh));
-    bodies[1]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 20.0f, 30.0f,
-                         glm::vec3(0.0f, 1.0f, 0.0f), 10.0f, bodies[0]);
-    bodies.push_back(
-        new Body(config, glm::vec3(0.0f, 0.0f, 0.0f), 0.4f, ico_mesh));
-    bodies[2]->set_orbit(glm::vec3(1.0f, 0.0f, 0.0f), 6.0f, 9.0f,
-                         glm::vec3(0.0f, 1.0f, 0.0f), 3.0f, bodies[1]);
-
-    for (auto& body : bodies) {
-        body->setup();
-    }
+    PlanetSystem planet_system(config);
 
     /// -- Skybox
     Skybox skybox;
@@ -186,9 +156,10 @@ int main() {
     // TODO : ????
 
     /// -- Timing
-    static double last_time = glfwGetTime();
+    double last_time = glfwGetTime();
+    float time_warp = 1.0f;
     /// -- Debug mode
-    static bool debug_mode = false;
+    bool debug_mode = false;
 
     /// -------- Main loop:
     while (!window.shouldClose()) {
@@ -201,9 +172,7 @@ int main() {
         /// -- Update cameras
         freecam.update_input();
         /// -- Update bodies
-        for (Body* body : bodies) {
-            body->update((float) delta_time);
-        }
+        planet_system.update(time_warp * (float)delta_time);
 
         /// ---- ImGui
         // window.update_input already called ImGui::NewFrame()
@@ -218,11 +187,10 @@ int main() {
         if (debug_mode) {
             // nothing to debug
         } else {  // not debug mode
+            ImGui::SliderFloat("Time Warp", &time_warp, 0.0f, 10.0f,
+                               "%.2f x");
             /// -- ImGui Body selection and controls
-            ImGui::Separator();
-            ImGui::SliderInt("Selected Body", &selected_body, 0,
-                             (int)bodies.size() - 1);
-            bodies[selected_body]->imGuiControl();
+            planet_system.imgui();
 
             // TODO: move these to particle system
             /// -- ImGui Particle System Controls
@@ -281,18 +249,9 @@ int main() {
 
             /// -- Pass #2: Render Bodies
             reset_opengl_state();
-            for (auto& body : bodies) {
-                body->shader.bind();
-                glUniform1f(body->shader.getUniformLocation("screenHeight"),
-                            (float)window.getWindowSize().y);
-                glUniform1f(body->shader.getUniformLocation("fov"),
-                            glm::radians(config.camera_fov_degrees));
-                glUniform1f(body->shader.getUniformLocation("time"),
-                            (float)glfwGetTime());
-
-                body->draw(active_camera->get_view_matrix(), projection_matrix,
-                           active_camera->get_position());
-            }
+            planet_system.draw(active_camera->get_view_matrix(),
+                projection_matrix, active_camera->get_position(),
+                static_cast<float>(HEIGHT_WINDOW));
 
             /// -- Pass #3 and #4: Render Battlecruiser Mesh
             // TODO: separate these two passes if needed (for different shaders)

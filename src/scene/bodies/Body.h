@@ -10,16 +10,19 @@ DISABLE_WARNINGS_PUSH()
 DISABLE_WARNINGS_POP()
 #include <iostream>
 
-#include "core/mesh.h"
 #include "core/config.h"
+#include "core/mesh.h"
 
 float target_body_tessellation_triangle_height = 5.0f;
 bool enable_body_tessellation = true;
+bool enable_eclipse = true;
 
-// This is a planet / star / space body base class with primitive default behavior.
+// This is a planet / star / space body base class with primitive default
+// behavior.
 class Body {
    public:
-    Body(Config& config, const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
+    Body(Config& config, const glm::vec3& pos, float r,
+         GPUMesh& icosahedron_mesh)
         : position(pos), radius(r), icosahedronMesh(icosahedron_mesh) {}
 
     glm::vec3 getPosition() const { return position; }
@@ -48,20 +51,28 @@ class Body {
             position = glm::vec3(0.0f);  // no orbiting if no parent
             return;                      // no orbiting if no parent
         }
+        // Focal distance: distance from ellipse center to focus (parent)
         float focalDistance =
             glm::sqrt(largeRadius * largeRadius - smallRadius * smallRadius);
-        glm::vec3 center =
-            parent->getPosition() + focalDistance * orbit_direction;
-        orbitAngle += (2.0f * glm::pi<float>() / orbitPeriod) *
-                      deltaTime;  // radians per second
-        if (orbitAngle > 2.0f * glm::pi<float>()) {
-            orbitAngle -= 2.0f * glm::pi<float>();
-        }
+
+        // Unit axes in the orbital plane
         glm::vec3 majorAxis = glm::normalize(orbit_direction);
         glm::vec3 minorAxis =
             glm::normalize(glm::cross(orbitNormal, majorAxis));
-        position = center + largeRadius * cos(orbitAngle) * majorAxis +
-                   smallRadius * sin(orbitAngle) * minorAxis;
+
+        // The ellipse center is offset from the parent along orbit_direction
+        glm::vec3 center = parent->getPosition() + focalDistance * majorAxis;
+
+        // Advance orbit angle at constant angular speed
+        float angularSpeed =
+            (2.0f * glm::pi<float>()) / orbitPeriod;  // radians/sec
+        orbitAngle += angularSpeed * deltaTime;
+        if (orbitAngle > 2.0f * glm::pi<float>())
+            orbitAngle -= 2.0f * glm::pi<float>();
+
+        // Compute position on the ellipse
+        position = center + largeRadius * glm::cos(orbitAngle) * majorAxis +
+                   smallRadius * glm::sin(orbitAngle) * minorAxis;
     }
 
     glm::mat4 get_model_matrix() const {
@@ -73,51 +84,58 @@ class Body {
     virtual void imGuiControl() {
         // ImGui::DragFloat3("Planet Position", glm::value_ptr(position), 0.1f);
         ImGui::Checkbox("Body Tessellation", &enable_body_tessellation);
-        ImGui::SliderFloat("Target Body Tessellation Triangle Height",
-            &target_body_tessellation_triangle_height, 1.0f, 20.0f);
-        
-        ImGui::SliderFloat("Planet Radius", &radius, 0.1f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Test", &test, 0.0f, 2.00f, "%.3f");
+        ImGui::DragFloat("Target Body Tessellation Triangle Height",
+                 &target_body_tessellation_triangle_height, 0.1f, 1.0f,
+                 20.0f);
+        ImGui::Checkbox("Enable Eclipse", &enable_eclipse);
+
+        ImGui::DragFloat("Planet Radius", &radius, 0.01f, 0.1f, 10.0f, "%.2f");
+        ImGui::DragFloat("Test", &test, 0.01f, 0.0f, 2.00f, "%.3f");
         ImGui::Separator();
         ImGui::Text("Orbit Controls");
-        ImGui::SliderFloat3("Orbit direction",
-                            glm::value_ptr(param_orbit_direction), -1.0f, 1.0f,
-                            "%.2f");
-        ImGui::SliderFloat("Small Radius", &param_small_radius, 0.0f, 100.0f,
-                           "%.2f");
-        ImGui::SliderFloat("Large Radius", &param_large_radius, 0.0f, 100.0f,
-                           "%.2f");
-        ImGui::SliderFloat3("Orbit Normal", glm::value_ptr(param_orbit_normal),
-                            -1.0f, 1.0f, "%.3f");
-        ImGui::SliderFloat("Orbit Period (s)", &param_orbit_period, 0.001f,
-                           10.0f, "%.2f");
+        ImGui::DragFloat3("Orbit direction",
+                  glm::value_ptr(param_orbit_direction), 0.01f, -1.0f, 1.0f,
+                  "%.2f");
+        ImGui::DragFloat("Small Radius", &param_small_radius, 0.1f, 0.0f, 100.0f,
+                 "%.2f");
+        ImGui::DragFloat("Large Radius", &param_large_radius, 0.1f, 0.0f, 100.0f,
+                 "%.2f");
+        ImGui::DragFloat3("Orbit Normal", glm::value_ptr(param_orbit_normal),
+                  0.01f, -1.0f, 1.0f, "%.3f");
+        ImGui::DragFloat("Orbit Period (s)", &param_orbit_period, 0.01f, 0.001f,
+                 100.0f, "%.2f");
         if (ImGui::Button("Apply Orbit Changes")) {
             set_orbit(param_orbit_direction, param_small_radius,
-                      param_large_radius, param_orbit_normal,
-                      param_orbit_period, parent);
+                  param_large_radius, param_orbit_normal,
+                  param_orbit_period, parent);
         }
     }
 
-    virtual void set_uniforms() { // this assumes the shader is already bound
+    virtual void set_uniforms() {  // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
         glUniform1f(shader.getUniformLocation("test"), test);
         glUniform1i(shader.getUniformLocation("tessellate"),
                     enable_body_tessellation);
         glUniform1f(shader.getUniformLocation("targetPixelSize"),
                     target_body_tessellation_triangle_height);
+        glUniform1i(shader.getUniformLocation("enable_eclipse"), enable_eclipse ? 1 : 0);
     }
 
     virtual void draw(
-        glm::mat4 viewMatrix,
-        glm::mat4 projectionMatrix, 
-        glm::vec3 cameraPos) { // this assumes the shader is already bound
+        glm::mat4 viewMatrix, glm::mat4 projectionMatrix,
+        glm::vec3 cameraPos) {  // this assumes the shader is already bound
         shader.bind();
         glm::mat4 modelMatrix = get_model_matrix();
-        glm::mat4 mvp = projectionMatrix * viewMatrix * modelMatrix;
-        glUniformMatrix4fv(shader.getUniformLocation("mvpMatrix"), 1, GL_FALSE,
-                           glm::value_ptr(mvp));
+        glUniformMatrix4fv(shader.getUniformLocation("model"), 1, GL_FALSE,
+                           glm::value_ptr(modelMatrix));
+        glUniformMatrix4fv(shader.getUniformLocation("view"), 1, GL_FALSE,
+                           glm::value_ptr(viewMatrix));
+        glUniformMatrix4fv(shader.getUniformLocation("projection"), 1, GL_FALSE,
+                           glm::value_ptr(projectionMatrix));
         glUniform3fv(shader.getUniformLocation("cameraWorldPos"), 1,
                      glm::value_ptr(cameraPos));
+        glUniform3fv(shader.getUniformLocation("planet_center"), 1,
+                     glm::value_ptr(position));
 
         set_uniforms();
 
@@ -126,14 +144,13 @@ class Body {
 
     void set_orbit(const glm::vec3& direction, float small_r, float large_r,
                    const glm::vec3& normal, float period, Body* parent_body) {
+        orbitNormal = glm::normalize(normal);
         orbit_direction = glm::normalize(
             direction - glm::dot(direction, orbitNormal) * orbitNormal);
         smallRadius = small_r;
         largeRadius = large_r;
-        orbitNormal = glm::normalize(normal);
         orbitPeriod = period;
         parent = parent_body;
-        // orbitAngle = 0.0f;
         param_orbit_direction = orbit_direction;
         param_small_radius = smallRadius;
         param_large_radius = largeRadius;

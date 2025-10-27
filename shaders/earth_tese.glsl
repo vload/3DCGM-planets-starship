@@ -119,7 +119,10 @@ out vec3 fragPosition;
 out vec3 spherePosition;
 out float height;
 
-uniform mat4 mvpMatrix;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
 uniform float radius = 1.0;
 uniform float test = 0.0;
 uniform float shape_noise_scale = 0.1;
@@ -127,7 +130,7 @@ uniform float shape_noise_scale = 0.1;
 // Earth shape parameters
 uniform float ocean_level = 0.0;
 
-uniform float shape_noise_base_frequency = 5.0;
+uniform float shape_noise_base_frequency = 1.2;
 uniform float shape_noise_pseudo_seed = 100.0;
 
 // Parameters
@@ -179,6 +182,6 @@ void main()
 
     fragNormal = normalize(pos); // TODO: compute better normal with gradient?
 
-    gl_Position = mvpMatrix * vec4(pos, 1.0);
-    fragPosition = gl_Position.xyz;
+    gl_Position = projection * view * model * vec4(pos, 1.0);
+    fragPosition = (model * vec4(pos, 1.0)).xyz;
 }

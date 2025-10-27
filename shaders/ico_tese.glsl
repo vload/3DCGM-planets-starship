@@ -6,7 +6,10 @@ out vec3 fragNormal;
 out vec3 fragPosition;
 out vec3 spherePosition;
 
-uniform mat4 mvpMatrix;
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 uniform float radius = 1.0;
 
 void main()
@@ -24,6 +27,6 @@ void main()
 
     fragNormal = normalize(pos);
 
-    gl_Position = mvpMatrix * vec4(pos, 1.0);
-    fragPosition = gl_Position.xyz;
+    gl_Position = projection * view * model * vec4(pos, 1.0);
+    fragPosition = (model * vec4(pos, 1.0)).xyz;
 }

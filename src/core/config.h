@@ -12,6 +12,19 @@ DISABLE_WARNINGS_POP()
 
 class Config {
 public:
+    struct PlanetInfo {
+        std::string type;
+        float radius;
+        int parent_id;
+
+        // Orbit parameters
+        glm::vec3 orbit_direction;
+        float orbit_small_r;
+        float orbit_large_r;
+        glm::vec3 orbit_normal;
+        float orbit_period;
+    };
+
     std::string window_title;
     int window_initial_width;
     int window_initial_height;
@@ -23,6 +36,7 @@ public:
     float freecam_look_speed;
 
     int planets_ico_mesh_resolution;
+    std::vector<PlanetInfo> planets;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -44,6 +58,29 @@ public:
         freecam_look_speed = data["camera"]["freecam"]["look_speed"].value_or(0.035f);
 
         planets_ico_mesh_resolution = data["planets"]["ico_mesh_resolution"].value_or(5);
+
+        // Get the underlying array object for planets_info
+        if (toml::array* planets_array = data["planets"]["planets_info"].as_array()) {
+            planets_array->for_each([&](auto&& planet) {
+                toml::array* planet_arr = planet.as_array();
+                if (!planet_arr) {
+                    std::cerr << "Error: Expected array for planet info, got "
+                              << planet.type() << std::endl;
+                    return;
+                }
+
+                PlanetInfo info;
+                info.type = (*planet_arr)[0].value_or("body");
+                info.radius = (*planet_arr)[1].value_or(1.0f);
+                info.parent_id = (*planet_arr)[2].value_or(-1);
+                info.orbit_direction = tomlArrayToVec3((*planet_arr)[3].as_array()).value_or(glm::vec3(0.0f));
+                info.orbit_small_r = (*planet_arr)[4].value_or(0.0f);
+                info.orbit_large_r = (*planet_arr)[5].value_or(0.0f);
+                info.orbit_normal = tomlArrayToVec3((*planet_arr)[6].as_array()).value_or(glm::vec3(0.0f));
+                info.orbit_period = (*planet_arr)[7].value_or(0.0f);
+                planets.push_back(info);
+            });
+        }
     }
 
 private:
