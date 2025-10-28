@@ -154,6 +154,9 @@ float fractalNoise(vec3 p) {
     return value / maxVal;
 }
 
+float get_height(vec3 sphere_pos) {
+    return fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+}
 
 void main()
 {
@@ -169,9 +172,8 @@ void main()
 
     vec3 gradient;
 
-    height = fractalNoise(spherePosition * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+    height = get_height(spherePosition);
 
-    // spherePosition = normalize(pos) * (1.0 + height * test);
     if(height < ocean_level){
         pos = spherePosition * radius * (1.0 + ocean_level * shape_noise_scale); // flatten ocean surface
     }

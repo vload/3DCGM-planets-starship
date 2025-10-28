@@ -18,17 +18,16 @@ look_speed = 0.005                 # this is basically sensitivity
 ico_mesh_resolution = 5
 # TODO: add star params
 # TODO: add earth params
-# TODO: add default solar system parameters like so:
 planets_info = [
 # example entries:
-# [type, radius, parent_id = -1] -> no orbit, static planet at (0, 0, 0) OR
+# [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
 # [type, radius, parent_id, orbit_direction, orbit_small_r, orbit_large_r, orbit_normal, orbit_period]
 # type can be "star", "earth", or "body" for now
 
     # Default single planet system
-#   ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
-#   ["earth", 1.0, 0, [1.0, 0.0, 0.0], 40.0, 40.0, [0.0, 1.0, 0.0], 1000000.0],
-#   ["body", 1.5, 1, [0.0, 0.0, 1.0], 6.0, 6.0, [0.0, 1.0, 0.0], 2.0],
+  # ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
+  # ["earth", 1.0, 0, [1.0, 0.0, 0.0], 40.0, 40.0, [0.0, 1.0, 0.0], 100000.0],
+  # ["body", 0.5, 1, [0.0, 0.0, 1.0], 10.0, 10.0, [0.0, 1.0, 0.0], 2.0],
 
     # Example multi-planet system
     # Star
@@ -64,3 +63,8 @@ planets_info = [
 # TODO: battlecruiser model path could go here
 [battlecruiser.thrusters]
 # TODO: battlecruiser thruster particle params could go here
+
+[shadows]
+enable_eclipse_shadows = true
+enable_shaddow_mapping_planets = true
+shadow_map_size = 8192

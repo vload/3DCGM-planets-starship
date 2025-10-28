@@ -37,6 +37,10 @@ class PlanetSystem {
 
     Config& config;
     GPUMesh ico_mesh{Mesh{}};
+    
+    float target_body_tessellation_triangle_height = 5.0f;
+    bool enable_body_tessellation = true;
+    bool enable_eclipse = true;
 
    public:
     PlanetSystem(Config& config) : config(config) {
@@ -50,7 +54,8 @@ class PlanetSystem {
             return;
         }
 
-        // TODO: load bodies from config
+        enable_eclipse = config.enable_eclipse_shadows;
+
         for (const auto& planet_info : config.planets) {
             switch (PLANET_TYPE_MAP.at(planet_info.type)) {
                 case PlanetType::STAR:
@@ -84,6 +89,12 @@ class PlanetSystem {
 
     void imgui() {
         ImGui::Separator();
+        ImGui::Checkbox("Body Tessellation", &enable_body_tessellation);
+        ImGui::DragFloat("Target Body Tessellation Triangle Height",
+                         &target_body_tessellation_triangle_height, 0.1f, 1.0f,
+                         20.0f);
+        ImGui::Checkbox("Enable Eclipse", &enable_eclipse);
+
         ImGui::SliderInt("Selected Body", &selected_body, 0,
                          (int)bodies.size() - 1);
         bodies[selected_body]->imGuiControl();
@@ -91,12 +102,15 @@ class PlanetSystem {
 
     void update(float delta_time) {
         for (Body* body : bodies) {
-            body->update((float)delta_time);
+            // assume sun is bodies[0]
+            // TODO: generalize for binary systems
+            body->update((float)delta_time, bodies[0]->getPosition());
         }
     }
 
     void draw(const glm::mat4& view_matrix, const glm::mat4& projection_matrix,
-              const glm::vec3& camera_position, float screen_height) {
+              const glm::vec3& camera_position, float screen_height,
+            void (*reset_opengl_state)()) {
         float time = (float)glfwGetTime();
         
         std::vector<glm::vec4> bodies_pos_rad;
@@ -111,8 +125,42 @@ class PlanetSystem {
                 bodies_pos_rad.push_back(glm::vec4(pos, radius));
             }
         }
-        
+
+        // shadow map pass
         for (Body* body : bodies) {
+            if (body->needs_shadow_map()) {
+                reset_opengl_state();
+                body->shader.bind();
+                glUniform1f(body->shader.getUniformLocation("screenHeight"),
+                            screen_height);
+                glUniform1f(body->shader.getUniformLocation("fov"),
+                            glm::radians(config.camera_fov_degrees));
+                glUniform1f(body->shader.getUniformLocation("time"), time);
+
+                glUniform1i(body->shader.getUniformLocation("binary_system"),
+                            0);
+                glUniform4fv(body->shader.getUniformLocation("sunPosRad"), 1,
+                             glm::value_ptr(sun_pos_rad));
+
+                glUniform1i(body->shader.getUniformLocation("num_bodies"),
+                            (GLint)bodies_pos_rad.size());
+                glUniform4fv(body->shader.getUniformLocation("bodyPosRadii"),
+                             (GLint)bodies_pos_rad.size(),
+                             glm::value_ptr(bodies_pos_rad[0]));
+                glUniform1i(body->shader.getUniformLocation("tessellate"),
+                            enable_body_tessellation);
+                glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
+                            target_body_tessellation_triangle_height);
+                glUniform1i(body->shader.getUniformLocation("enable_eclipse"),
+                            enable_eclipse ? 1 : 0);
+                
+                body->draw_depth(bodies[0]->getPosition());
+            }
+        }
+
+        // regular draw pass
+        for (Body* body : bodies) {
+            reset_opengl_state();
             body->shader.bind();
             glUniform1f(body->shader.getUniformLocation("screenHeight"),
                         screen_height);
@@ -128,6 +176,11 @@ class PlanetSystem {
                 (GLint)bodies_pos_rad.size());
             glUniform4fv(body->shader.getUniformLocation("bodyPosRadii"),
                 (GLint)bodies_pos_rad.size(), glm::value_ptr(bodies_pos_rad[0]));    
+            glUniform1i(body->shader.getUniformLocation("tessellate"),
+                        enable_body_tessellation);
+            glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
+                        target_body_tessellation_triangle_height);
+            glUniform1i(body->shader.getUniformLocation("enable_eclipse"), enable_eclipse ? 1 : 0);
 
             body->draw(view_matrix, projection_matrix, camera_position);
         }

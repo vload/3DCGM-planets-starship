@@ -37,6 +37,10 @@ public:
 
     int planets_ico_mesh_resolution;
     std::vector<PlanetInfo> planets;
+
+    bool enable_eclipse_shadows;
+    bool enable_shadow_mapping_planets;
+    int shadow_map_size;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -81,6 +85,10 @@ public:
                 planets.push_back(info);
             });
         }
+
+        enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
+        enable_shadow_mapping_planets = data["shadows"]["enable_shaddow_mapping_planets"].value_or(false);
+        shadow_map_size = data["shadows"]["shadow_map_size"].value_or(2048);
     }
 
 private:

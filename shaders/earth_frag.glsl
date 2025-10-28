@@ -1,4 +1,170 @@
 #version 410
+//
+// Description : Array and textureless GLSL 2D/3D/4D simplex 
+//               noise functions.
+//      Author : Ian McEwan, Ashima Arts.
+//  Maintainer : stegu
+//     Lastmod : 20201014 (stegu)
+//     License : Copyright (C) 2011 Ashima Arts. All rights reserved.
+//               Distributed under the MIT License. See LICENSE file.
+//               https://github.com/ashima/webgl-noise
+//               https://github.com/stegu/webgl-noise
+// 
+
+vec3 mod289(vec3 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 mod289(vec4 x) {
+  return x - floor(x * (1.0 / 289.0)) * 289.0;
+}
+
+vec4 permute(vec4 x) {
+     return mod289(((x*34.0)+10.0)*x);
+}
+
+vec4 taylorInvSqrt(vec4 r)
+{
+  return 1.79284291400159 - 0.85373472095314 * r;
+}
+
+float snoise(vec3 v)//, out vec3 gradient)
+{
+  const vec2  C = vec2(1.0/6.0, 1.0/3.0) ;
+  const vec4  D = vec4(0.0, 0.5, 1.0, 2.0);
+
+// First corner
+  vec3 i  = floor(v + dot(v, C.yyy) );
+  vec3 x0 =   v - i + dot(i, C.xxx) ;
+
+// Other corners
+  vec3 g = step(x0.yzx, x0.xyz);
+  vec3 l = 1.0 - g;
+  vec3 i1 = min( g.xyz, l.zxy );
+  vec3 i2 = max( g.xyz, l.zxy );
+
+  //   x0 = x0 - 0.0 + 0.0 * C.xxx;
+  //   x1 = x0 - i1  + 1.0 * C.xxx;
+  //   x2 = x0 - i2  + 2.0 * C.xxx;
+  //   x3 = x0 - 1.0 + 3.0 * C.xxx;
+  vec3 x1 = x0 - i1 + C.xxx;
+  vec3 x2 = x0 - i2 + C.yyy; // 2.0*C.x = 1/3 = C.y
+  vec3 x3 = x0 - D.yyy;      // -1.0+3.0*C.x = -0.5 = -D.y
+
+// Permutations
+  i = mod289(i); 
+  vec4 p = permute( permute( permute( 
+             i.z + vec4(0.0, i1.z, i2.z, 1.0 ))
+           + i.y + vec4(0.0, i1.y, i2.y, 1.0 )) 
+           + i.x + vec4(0.0, i1.x, i2.x, 1.0 ));
+
+// Gradients: 7x7 points over a square, mapped onto an octahedron.
+// The ring size 17*17 = 289 is close to a multiple of 49 (49*6 = 294)
+  float n_ = 0.142857142857; // 1.0/7.0
+  vec3  ns = n_ * D.wyz - D.xzx;
+
+  vec4 j = p - 49.0 * floor(p * ns.z * ns.z);  //  mod(p,7*7)
+
+  vec4 x_ = floor(j * ns.z);
+  vec4 y_ = floor(j - 7.0 * x_ );    // mod(j,N)
+
+  vec4 x = x_ *ns.x + ns.yyyy;
+  vec4 y = y_ *ns.x + ns.yyyy;
+  vec4 h = 1.0 - abs(x) - abs(y);
+
+  vec4 b0 = vec4( x.xy, y.xy );
+  vec4 b1 = vec4( x.zw, y.zw );
+
+  //vec4 s0 = vec4(lessThan(b0,0.0))*2.0 - 1.0;
+  //vec4 s1 = vec4(lessThan(b1,0.0))*2.0 - 1.0;
+  vec4 s0 = floor(b0)*2.0 + 1.0;
+  vec4 s1 = floor(b1)*2.0 + 1.0;
+  vec4 sh = -step(h, vec4(0.0));
+
+  vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy ;
+  vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww ;
+
+  vec3 p0 = vec3(a0.xy,h.x);
+  vec3 p1 = vec3(a0.zw,h.y);
+  vec3 p2 = vec3(a1.xy,h.z);
+  vec3 p3 = vec3(a1.zw,h.w);
+
+//Normalise gradients
+  vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2, p2), dot(p3,p3)));
+  p0 *= norm.x;
+  p1 *= norm.y;
+  p2 *= norm.z;
+  p3 *= norm.w;
+
+// Mix final noise value
+  vec4 m = max(0.5 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+  vec4 m2 = m * m;
+  vec4 m4 = m2 * m2;
+  vec4 pdotx = vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3));
+
+// Determine noise gradient
+  vec4 temp = m2 * m * pdotx;
+  // gradient = -8.0 * (temp.x * x0 + temp.y * x1 + temp.z * x2 + temp.w * x3);
+  // gradient += m4.x * p0 + m4.y * p1 + m4.z * p2 + m4.w * p3;
+  // gradient *= 105.0;
+
+  return 105.0 * dot(m4, pdotx);
+}
+
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
+
+// uniform float radius = 1.0;
+// uniform float test = 0.0;
+uniform float shape_noise_scale = 0.1;
+
+// Earth shape parameters
+// uniform float ocean_level = 0.0;
+
+uniform float shape_noise_base_frequency = 1.2;
+uniform float shape_noise_pseudo_seed = 100.0;
+
+// Parameters
+uniform int OCTAVES_shape = 5;
+uniform float LACUNARITY_shape = 2.0;
+uniform float PERSISTENCE_shape = 0.45;
+
+// Fractal 3D Simplex Noise
+float fractalNoise(vec3 p) {
+    float value = 0.0;
+    float amplitude = 1.0;
+    float frequency = 1.0;
+    float maxVal = 0.0;
+
+    for (int i = 0; i < OCTAVES_shape; i++) {
+        value += snoise(p * frequency) * amplitude;
+        maxVal += amplitude;
+        amplitude *= PERSISTENCE_shape;
+        frequency *= LACUNARITY_shape;
+    }
+    return value / maxVal;
+}
+
+float get_height(vec3 sphere_pos) {
+    return fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+}
+
+vec3 get_surface_normal(vec3 pos)
+{
+    float eps = 0.001; // small step for finite differences
+    float h = get_height(pos);
+
+    float hx = get_height(pos + vec3(eps, 0.0, 0.0));
+    float hy = get_height(pos + vec3(0.0, eps, 0.0));
+    float hz = get_height(pos + vec3(0.0, 0.0, eps));
+
+    vec3 grad = vec3(hx - h, hy - h, hz - h) / eps;
+    
+    // Normal points opposite to gradient, then normalize
+    vec3 n = normalize(pos - grad * shape_noise_scale);
+    return n;
+}
 
 //
 // Description : Array and textureless GLSL 2D/3D/4D simplex 
@@ -12,24 +178,24 @@
 //               https://github.com/stegu/webgl-noise
 // 
 
-vec4 mod289(vec4 x) {
-  return x - floor(x * (1.0 / 289.0)) * 289.0; }
+// vec4 mod289(vec4 x) {
+//   return x - floor(x * (1.0 / 289.0)) * 289.0; }
 
 float mod289(float x) {
   return x - floor(x * (1.0 / 289.0)) * 289.0; }
 
-vec4 permute(vec4 x) {
-     return mod289(((x*34.0)+10.0)*x);
-}
+// vec4 permute(vec4 x) {
+//      return mod289(((x*34.0)+10.0)*x);
+// }
 
 float permute(float x) {
      return mod289(((x*34.0)+10.0)*x);
 }
 
-vec4 taylorInvSqrt(vec4 r)
-{
-  return 1.79284291400159 - 0.85373472095314 * r;
-}
+// vec4 taylorInvSqrt(vec4 r)
+// {
+//   return 1.79284291400159 - 0.85373472095314 * r;
+// }
 
 float taylorInvSqrt(float r)
 {
@@ -131,7 +297,7 @@ float snoise(vec4 v)
 }
 
 in vec3 fragPosition;
-in vec3 fragNormal;
+// in vec3 fragNormal;
 in vec3 spherePosition;
 in float height;
 
@@ -140,7 +306,6 @@ layout(location = 0) out vec4 fragColor;
 
 uniform float ocean_level = 0.0;
 // TODO: this is not working properly yet and should be a uniform
-vec3 lightPos = vec3(0.0, 0.0, 0.0);
 uniform vec3 color = vec3(0.3, 0.3, 1.0);
 uniform float time;
 uniform float test = 0.0;
@@ -258,13 +423,66 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
     return clamp(covered, 0.0, 1.0);
 }
 
+uniform vec3 lightPosition;
+uniform mat4 lightViewMatrix;
+uniform mat4 lightProjectionMatrix;
+uniform int only_depth = 0;
+
+uniform sampler2D shadowMap;
+
+// TODO: add settings as uniforms, e.g., PCF kernel size, bias, enable_shadows, enable_pcf, etc.
+float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
+{
+    // 1. Transform fragment to light space
+    vec4 fragPosLightSpace = lightProjectionMatrix * lightViewMatrix * vec4(fragPos, 1.0);
+    
+    // 2. Perspective divide and map to [0,1] texture coords
+    vec3 projCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+    projCoords = projCoords * 0.5 + 0.5;
+
+    // 3. Outside shadow map = fully lit
+    if(projCoords.x < 0.0 || projCoords.x > 1.0 || projCoords.y < 0.0 || projCoords.y > 1.0)
+        return 0.0;
+
+    // 4. PCF setup
+    float shadow = 0.0;
+    // TODO: angle-dependent bias
+    float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.0005); // angle-dependent bias
+    // float bias = 0.005;
+    ivec2 texSize = textureSize(shadowMap, 0); 
+    vec2 texelSize = 1.0 / vec2(texSize);
+
+    // 5. Sample 3x3 neighborhood
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            vec2 offset = vec2(float(x), float(y)) * texelSize;
+            float closestDepth = texture(shadowMap, projCoords.xy + offset).r;
+            if(projCoords.z - bias > closestDepth)
+                shadow += 1.0;
+        }
+    }
+
+    shadow /= 9.0; // average over 9 samples
+    return shadow; // 0.0 = fully lit, 1.0 = fully shadowed
+}
+
 void main()
 {
+    if(only_depth != 1) {
+    // fragColor = vec4(getOceanNormal(spherePosition, time), 1.0);
+    // return;
+
     float covered = 0.0;
     if (enable_eclipse > 0) {
         covered = eclipse_factor(fragPosition, sunPosRad);
     }
     float eclipseLightFactor = 1.0 - covered;
+
+    // Shadows
+    float shadowMultiplier = 1.0;
+    // shadowMultiplier = 1.0 - shadow_calculation(fragPosition);
 
     if (height < ocean_level) {
         float ocean_depth = ocean_level - height;
@@ -285,7 +503,7 @@ void main()
         }
 
         vec3 normal = getOceanNormal(spherePosition, time);
-        vec3 lightDir = normalize(lightPos - fragPosition);
+        vec3 lightDir = normalize(lightPosition - fragPosition);
 
         // Phong reflection model
         vec3 ambient = waterKa * waterColor.rgb;
@@ -294,7 +512,8 @@ void main()
         vec3 reflectDir = reflect(-lightDir, normal);
         vec3 specular = waterKs * pow(max(dot(viewDir, reflectDir), 0.0), waterShininess) * vec3(1.0);
 
-        fragColor = vec4(ambient + (diffuse + specular) * eclipseLightFactor, 1.0);
+        shadowMultiplier = 1.0 - shadow_calculation(fragPosition, normal, lightDir);
+        fragColor = vec4(ambient + (diffuse + specular) * eclipseLightFactor * shadowMultiplier, 1.0);
     }
     else{
         //TODO: maybe use materials for this, or at least blinnphong with uniforms
@@ -323,13 +542,18 @@ void main()
         float ka = 0.1; // ambient
         float kd = 0.9; // diffuse
 
-        vec3 normal = spherePosition; // approximate normal on sphere
-        vec3 lightDir = normalize(lightPos - fragPosition);
+        vec3 normal = get_surface_normal(spherePosition); // approximate normal on sphere
+        vec3 lightDir = normalize(lightPosition - fragPosition);
 
         // Phong reflection model
         vec3 ambient = ka * col;
         vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * col;
-
-        fragColor = vec4(ambient + diffuse * eclipseLightFactor, 1.0);
+        
+        shadowMultiplier = 1.0 - shadow_calculation(fragPosition, normal, lightDir);
+        fragColor = vec4(ambient + diffuse * eclipseLightFactor * shadowMultiplier, 1.0);
+    }
+    }
+    else{
+        // do nothing
     }
 }

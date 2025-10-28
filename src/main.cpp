@@ -27,10 +27,10 @@ DISABLE_WARNINGS_POP()
 #include "core/config.h"
 #include "core/mesh.h"
 #include "scene/Skybox.h"
+#include "scene/battlecruiser/Battlecruiser.h"
 #include "scene/bodies/PlanetSystem.h"
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
-#include "scene/battlecruiser/Battlecruiser.h"
 
 int WIDTH_WINDOW = 1280;
 int HEIGHT_WINDOW = 720;
@@ -39,6 +39,9 @@ int HEIGHT_WINDOW = 720;
 void reset_opengl_state() {
     // Viewport
     glViewport(0, 0, WIDTH_WINDOW, HEIGHT_WINDOW);
+
+    // Framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
     // Clear color
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
@@ -60,9 +63,6 @@ void reset_opengl_state() {
     // Blending
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // Framebuffer bindings
-    // glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
 
 void load_config(Config& config) {
@@ -124,7 +124,8 @@ int main() {
             static_cast<float>(newSize.x) / static_cast<float>(newSize.y), 0.1f,
             1000.0f);
     });
-    // TODO: we might need other projection matrices for other cameras (minimap, shadows)
+    // TODO: we might need other projection matrices for other cameras (minimap,
+    // shadows)
 
     /// ---- Scene setup
     /// -- Planets
@@ -187,8 +188,7 @@ int main() {
         if (debug_mode) {
             // nothing to debug
         } else {  // not debug mode
-            ImGui::SliderFloat("Time Warp", &time_warp, 0.0f, 10.0f,
-                               "%.2f x");
+            ImGui::SliderFloat("Time Warp", &time_warp, 0.0f, 10.0f, "%.2f x");
             /// -- ImGui Body selection and controls
             planet_system.imgui();
 
@@ -250,32 +250,42 @@ int main() {
             /// -- Pass #2: Render Bodies
             reset_opengl_state();
             planet_system.draw(active_camera->get_view_matrix(),
-                projection_matrix, active_camera->get_position(),
-                static_cast<float>(HEIGHT_WINDOW));
+                               projection_matrix, active_camera->get_position(),
+                               static_cast<float>(HEIGHT_WINDOW),
+                               reset_opengl_state);
 
             /// -- Pass #3 and #4: Render Battlecruiser Mesh
             // TODO: separate these two passes if needed (for different shaders)
             reset_opengl_state();
-            battlecruiser.draw(active_camera->get_view_matrix(),
-                projection_matrix, glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
+            battlecruiser.draw(
+                active_camera->get_view_matrix(), projection_matrix,
+                glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
                 skybox.getCubemapTexture());
-            
+
             /// -- Pass #5: Render battlecruiser Particles
             // TODO: these should be in the particle class.
             reset_opengl_state();
             float particlesPerSecond = 1000.0f;
-            int newParticles = static_cast<int>(delta_time * particlesPerSecond);
-            if (newParticles > 500)
-                newParticles = 500;
+            int newParticles =
+                static_cast<int>(delta_time * particlesPerSecond);
+            if (newParticles > 500) newParticles = 500;
 
             for (int i = 0; i < newParticles; ++i) {
-                for (int j = 0; j < battlecruiser.getRelativePositionThrusters().size(); j++) {
-                    particles.spawn(battlecruiser.getRelativePositionThrusters()[j], speedInitParticle, colorR, colorG, colorB, coneAngle, life, lifeDeviation, size, sizeDeviation);
+                for (int j = 0;
+                     j < battlecruiser.getRelativePositionThrusters().size();
+                     j++) {
+                    particles.spawn(
+                        battlecruiser.getRelativePositionThrusters()[j],
+                        speedInitParticle, colorR, colorG, colorB, coneAngle,
+                        life, lifeDeviation, size, sizeDeviation);
                 }
             }
 
-            particles.update(battlecruiser.getModelMatrix(), (float) delta_time, active_camera->get_position(), speedParticle, lifeThreshold);
-            particles.draw(active_camera->get_view_matrix(), projection_matrix, battlecruiser.getModelMatrix());
+            particles.update(battlecruiser.getModelMatrix(), (float)delta_time,
+                             active_camera->get_position(), speedParticle,
+                             lifeThreshold);
+            particles.draw(active_camera->get_view_matrix(), projection_matrix,
+                           battlecruiser.getModelMatrix());
         }
 
         //// ---- Swap buffers

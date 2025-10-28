@@ -24,6 +24,8 @@ class Earth : public Body {
         Body::update(deltaTime);
     }
 
+    bool needs_shadow_map() { return true; }
+
     void imGuiControl() {
         Body::imGuiControl();
         ImGui::SliderFloat("Ocean Level", &ocean_level, -1.0f, 1.0f, "%.2f");
