@@ -37,13 +37,13 @@ class Body {
         try {
             ShaderBuilder icoBuilder;
             icoBuilder.addStage(GL_VERTEX_SHADER,
-                                RESOURCE_ROOT "shaders/ico_vert.glsl");
+                                RESOURCE_ROOT "shaders/bodies/ico_vert.glsl");
             icoBuilder.addStage(GL_TESS_CONTROL_SHADER,
-                                RESOURCE_ROOT "shaders/ico_tesc.glsl");
+                                RESOURCE_ROOT "shaders/bodies/ico_tesc.glsl");
             icoBuilder.addStage(GL_TESS_EVALUATION_SHADER,
-                                RESOURCE_ROOT "shaders/ico_tese.glsl");
+                                RESOURCE_ROOT "shaders/bodies/ico_tese.glsl");
             icoBuilder.addStage(GL_FRAGMENT_SHADER,
-                                RESOURCE_ROOT "shaders/ico_frag.glsl");
+                                RESOURCE_ROOT "shaders/bodies/ico_frag.glsl");
             shader = icoBuilder.build();
         } catch (ShaderLoadingException e) {
             std::cerr << e.what() << std::endl;

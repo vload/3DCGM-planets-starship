@@ -10,13 +10,13 @@ class Earth : public Body {
     void setup() {
         ShaderBuilder earthBuilder;
         earthBuilder.addStage(GL_VERTEX_SHADER,
-                            RESOURCE_ROOT "shaders/ico_vert.glsl");
+                            RESOURCE_ROOT "shaders/bodies/ico_vert.glsl");
         earthBuilder.addStage(GL_TESS_CONTROL_SHADER,
-                            RESOURCE_ROOT "shaders/ico_tesc.glsl");
+                            RESOURCE_ROOT "shaders/bodies/ico_tesc.glsl");
         earthBuilder.addStage(GL_TESS_EVALUATION_SHADER,
-                            RESOURCE_ROOT "shaders/earth_tese.glsl");
+                            RESOURCE_ROOT "shaders/bodies/earth_tese.glsl");
         earthBuilder.addStage(GL_FRAGMENT_SHADER,
-                            RESOURCE_ROOT "shaders/earth_frag.glsl");
+                            RESOURCE_ROOT "shaders/bodies/earth_frag.glsl");
         shader = earthBuilder.build();
     }
 
@@ -46,6 +46,7 @@ class Earth : public Body {
         ImGui::SliderFloat("Water Kd", &waterKd, 0.0f, 1.0f, "%.2f");
         ImGui::SliderFloat("Water Ks", &waterKs, 0.0f, 1.0f, "%.2f");
         ImGui::SliderFloat("Water Shininess", &waterShininess, 1.0f, 256.0f, "%.2f");
+        ImGui::SliderFloat("Ocean Normal Gradient Multiplier", &ocean_normal_gradient_multiplier, 0.0f, 0.1f, "%.3f");
     }
 
     virtual void set_uniforms() {  // this assumes the shader is already bound
@@ -76,6 +77,8 @@ class Earth : public Body {
         glUniform1f(shader.getUniformLocation("waterKd"), waterKd);
         glUniform1f(shader.getUniformLocation("waterKs"), waterKs);
         glUniform1f(shader.getUniformLocation("waterShininess"), waterShininess);
+        glUniform1f(shader.getUniformLocation("ocean_normal_gradient_multiplier"),
+                    ocean_normal_gradient_multiplier);
     }
 
    protected:
@@ -86,7 +89,7 @@ class Earth : public Body {
     float shape_noise_base_frequency = 1.2f;
     float ocean_level = 0.0f;
     float shape_noise_pseudo_seed = 100.0f;
-    float shape_noise_scale = 0.1f;
+    float shape_noise_scale = 0.25f;
     // Earth water parameters
     int water_noise_octaves = 5;
     float water_noise_lacunarity = 2.0f;
@@ -97,4 +100,5 @@ class Earth : public Body {
     float waterKd = 0.9f;
     float waterKs = 0.9f;
     float waterShininess = 128.0f;
+    float ocean_normal_gradient_multiplier = 0.01f;
 };

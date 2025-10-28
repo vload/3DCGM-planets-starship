@@ -41,6 +41,9 @@ class PlanetSystem {
     float target_body_tessellation_triangle_height = 5.0f;
     bool enable_body_tessellation = true;
     bool enable_eclipse = true;
+    bool enable_shadowmapping = true;
+    int PCF_kernel_radius = 1;
+    bool enable_PCF = true;
 
    public:
     PlanetSystem(Config& config) : config(config) {
@@ -94,6 +97,9 @@ class PlanetSystem {
                          &target_body_tessellation_triangle_height, 0.1f, 1.0f,
                          20.0f);
         ImGui::Checkbox("Enable Eclipse", &enable_eclipse);
+        ImGui::Checkbox("Enable Shadowmapping", &enable_shadowmapping);
+        ImGui::Checkbox("Enable PCF", &enable_PCF);
+        ImGui::DragInt("PCF Kernel Radius", &PCF_kernel_radius, 1, 0, 10);
 
         ImGui::SliderInt("Selected Body", &selected_body, 0,
                          (int)bodies.size() - 1);
@@ -151,8 +157,6 @@ class PlanetSystem {
                             enable_body_tessellation);
                 glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
                             target_body_tessellation_triangle_height);
-                glUniform1i(body->shader.getUniformLocation("enable_eclipse"),
-                            enable_eclipse ? 1 : 0);
                 
                 body->draw_depth(bodies[0]->getPosition());
             }
@@ -181,6 +185,9 @@ class PlanetSystem {
             glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
                         target_body_tessellation_triangle_height);
             glUniform1i(body->shader.getUniformLocation("enable_eclipse"), enable_eclipse ? 1 : 0);
+            glUniform1i(body->shader.getUniformLocation("enable_shadowmapping"), enable_shadowmapping ? 1 : 0);
+            glUniform1i(body->shader.getUniformLocation("PCF_kernel_radius"), PCF_kernel_radius);
+            glUniform1i(body->shader.getUniformLocation("enable_PCF"), enable_PCF ? 1 : 0);
 
             body->draw(view_matrix, projection_matrix, camera_position);
         }

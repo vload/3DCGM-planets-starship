@@ -337,26 +337,26 @@ float fractalNoise(vec4 p) {
 }
 
 
+uniform float ocean_normal_gradient_multiplier = 0.01;
+
 // Computes a procedural ocean normal for a spherical planet
 // TODO: the normals are not quite right, but close enough for now
 vec3 getOceanNormal(vec3 pos, float time) {
-    float delta = 0.01;
-    // Construct tangent space on the sphere
-    vec3 up = abs(pos.y) < 0.999 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0);
-    vec3 tangent = normalize(cross(up, pos));
-    vec3 bitangent = normalize(cross(pos, tangent));
+    float eps = 0.001; // small step for finite differences
+    float delta = 0.001;
     
-    // Sample height from 4D fractal noise
     float h = fractalNoise(vec4(pos * ocean_scale, time * ocean_speed));
-    float h_t = fractalNoise(vec4((pos + tangent * delta) * ocean_scale, time * ocean_speed));
-    float h_b = fractalNoise(vec4((pos + bitangent * delta) * ocean_scale, time * ocean_speed));
+
+    float hx = fractalNoise(vec4((pos + vec3(1.0, 0.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
+    float hy = fractalNoise(vec4((pos + vec3(0.0, 1.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
+    float hz = fractalNoise(vec4((pos + vec3(0.0, 0.0, 1.0) * delta) * ocean_scale, time * ocean_speed));
 
     // Compute gradient in tangent plane
-    vec3 grad = tangent * (h_t - h) + bitangent * (h_b - h);
+    vec3 grad = vec3(hx - h, hy - h, hz - h) / eps;
     
-    // Perturb the spherical normal
-    vec3 normal = normalize(pos + grad);
-    return normal;
+    // Normal points opposite to gradient, then normalize
+    vec3 n = normalize(pos - grad * ocean_normal_gradient_multiplier);
+    return n;
 }
 
 uniform vec3 cameraWorldPos;
@@ -428,11 +428,17 @@ uniform mat4 lightViewMatrix;
 uniform mat4 lightProjectionMatrix;
 uniform int only_depth = 0;
 
+uniform int enable_shadowmapping = 1;
+uniform int enable_PCF = 1;
+uniform int PCF_kernel_radius = 1;
+
 uniform sampler2D shadowMap;
 
-// TODO: add settings as uniforms, e.g., PCF kernel size, bias, enable_shadows, enable_pcf, etc.
 float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
 {
+    if(enable_shadowmapping == 0) {
+        return 0.0;
+    }
     // 1. Transform fragment to light space
     vec4 fragPosLightSpace = lightProjectionMatrix * lightViewMatrix * vec4(fragPos, 1.0);
     
@@ -446,16 +452,20 @@ float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
 
     // 4. PCF setup
     float shadow = 0.0;
-    // TODO: angle-dependent bias
     float bias = max(0.005 * (1.0 - dot(normal, lightDir)), 0.0005); // angle-dependent bias
     // float bias = 0.005;
     ivec2 texSize = textureSize(shadowMap, 0); 
     vec2 texelSize = 1.0 / vec2(texSize);
 
+    int kernel_radius = PCF_kernel_radius;
+    if(enable_PCF == 0) {
+        kernel_radius = 0;
+    }
+
     // 5. Sample 3x3 neighborhood
-    for(int x = -1; x <= 1; ++x)
+    for(int x = -kernel_radius; x <= kernel_radius; ++x)
     {
-        for(int y = -1; y <= 1; ++y)
+        for(int y = -kernel_radius; y <= kernel_radius; ++y)
         {
             vec2 offset = vec2(float(x), float(y)) * texelSize;
             float closestDepth = texture(shadowMap, projCoords.xy + offset).r;
@@ -464,15 +474,13 @@ float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
         }
     }
 
-    shadow /= 9.0; // average over 9 samples
+    shadow /= float((kernel_radius * 2 + 1) * (kernel_radius * 2 + 1)); // average over samples
     return shadow; // 0.0 = fully lit, 1.0 = fully shadowed
 }
 
 void main()
 {
     if(only_depth != 1) {
-    // fragColor = vec4(getOceanNormal(spherePosition, time), 1.0);
-    // return;
 
     float covered = 0.0;
     if (enable_eclipse > 0) {
