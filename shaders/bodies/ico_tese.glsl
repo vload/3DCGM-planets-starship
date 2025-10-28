@@ -2,7 +2,6 @@
 layout(triangles, equal_spacing, ccw) in;
 
 in vec3 tcsPosition[];
-out vec3 fragNormal;
 out vec3 fragPosition;
 out vec3 spherePosition;
 
@@ -24,8 +23,6 @@ void main()
 
     spherePosition = normalize(pos);
     pos = normalize(pos) * radius;
-
-    fragNormal = normalize(pos);
 
     gl_Position = projection * view * model * vec4(pos, 1.0);
     fragPosition = (model * vec4(pos, 1.0)).xyz;

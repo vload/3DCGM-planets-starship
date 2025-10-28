@@ -22,6 +22,8 @@ class Body {
     ShadowMap shadow_map;
 
    public:
+    virtual ~Body() = default;
+
     Body(Config& config, const glm::vec3& pos, float r,
          GPUMesh& icosahedron_mesh)
         : config(config),
@@ -132,7 +134,7 @@ class Body {
 
     virtual bool needs_shadow_map() { return false; }
 
-    void draw_depth(glm::vec3 light_position) {
+    void draw_depth() {
         shader.bind();
         shadow_map.bind_for_writing();
 

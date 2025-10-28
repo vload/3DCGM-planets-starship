@@ -124,8 +124,7 @@ int main() {
             static_cast<float>(newSize.x) / static_cast<float>(newSize.y), 0.1f,
             1000.0f);
     });
-    // TODO: we might need other projection matrices for other cameras (minimap,
-    // shadows)
+    // TODO: we might need other projection matrices for other cameras (minimap)
 
     /// ---- Scene setup
     /// -- Planets
@@ -247,22 +246,21 @@ int main() {
             reset_opengl_state();
             skybox.draw(active_camera->get_view_matrix(), projection_matrix);
 
-            /// -- Pass #2: Render Bodies
+            /// -- Pass #2 and #3: Shadow-map per body(that needs it) and Render Bodies
             reset_opengl_state();
             planet_system.draw(active_camera->get_view_matrix(),
                                projection_matrix, active_camera->get_position(),
                                static_cast<float>(HEIGHT_WINDOW),
                                reset_opengl_state);
 
-            /// -- Pass #3 and #4: Render Battlecruiser Mesh
-            // TODO: separate these two passes if needed (for different shaders)
+            /// -- Pass #4 and #5: Render Battlecruiser Mesh
             reset_opengl_state();
             battlecruiser.draw(
                 active_camera->get_view_matrix(), projection_matrix,
                 glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
                 skybox.getCubemapTexture());
 
-            /// -- Pass #5: Render battlecruiser Particles
+            /// -- Pass #6: Render battlecruiser Particles
             // TODO: these should be in the particle class.
             reset_opengl_state();
             float particlesPerSecond = 1000.0f;

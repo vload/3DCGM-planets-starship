@@ -158,7 +158,7 @@ class PlanetSystem {
                 glUniform1f(body->shader.getUniformLocation("targetPixelSize"),
                             target_body_tessellation_triangle_height);
                 
-                body->draw_depth(bodies[0]->getPosition());
+                body->draw_depth();
             }
         }
 

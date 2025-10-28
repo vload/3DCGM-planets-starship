@@ -88,6 +88,7 @@ class Earth : public Body {
     float shape_noise_persistence = 0.45f;
     float shape_noise_base_frequency = 1.2f;
     float ocean_level = 0.0f;
+    // TODO: use a different seed per planet?
     float shape_noise_pseudo_seed = 100.0f;
     float shape_noise_scale = 0.25f;
     // Earth water parameters

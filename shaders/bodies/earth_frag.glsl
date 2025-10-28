@@ -297,7 +297,6 @@ float snoise(vec4 v)
 }
 
 in vec3 fragPosition;
-// in vec3 fragNormal;
 in vec3 spherePosition;
 in float height;
 
@@ -305,8 +304,6 @@ layout(location = 0) out vec4 fragColor;
 
 
 uniform float ocean_level = 0.0;
-// TODO: this is not working properly yet and should be a uniform
-uniform vec3 color = vec3(0.3, 0.3, 1.0);
 uniform float time;
 uniform float test = 0.0;
 uniform float radius = 1.0;
@@ -340,7 +337,6 @@ float fractalNoise(vec4 p) {
 uniform float ocean_normal_gradient_multiplier = 0.01;
 
 // Computes a procedural ocean normal for a spherical planet
-// TODO: the normals are not quite right, but close enough for now
 vec3 getOceanNormal(vec3 pos, float time) {
     float eps = 0.001; // small step for finite differences
     float delta = 0.001;
@@ -545,12 +541,11 @@ void main()
             col = white;
         }
 
-        // TODO:
-        // temp phong shading (the tessellation does not provide normals yet)
+        // TODO: temp phong shading, replace with PBR later
         float ka = 0.1; // ambient
         float kd = 0.9; // diffuse
 
-        vec3 normal = get_surface_normal(spherePosition); // approximate normal on sphere
+        vec3 normal = get_surface_normal(spherePosition);
         vec3 lightDir = normalize(lightPosition - fragPosition);
 
         // Phong reflection model
@@ -562,6 +557,6 @@ void main()
     }
     }
     else{
-        // do nothing
+        // do nothing for depth-only pass
     }
 }

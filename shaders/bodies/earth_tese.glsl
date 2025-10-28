@@ -114,7 +114,6 @@ float snoise(vec3 v)//, out vec3 gradient)
 }
 
 in vec3 tcsPosition[];
-out vec3 fragNormal;
 out vec3 fragPosition;
 out vec3 spherePosition;
 out float height;
@@ -180,9 +179,6 @@ void main()
     else{
         pos = spherePosition * radius * (1.0 + height * shape_noise_scale);
     }
-
-
-    fragNormal = normalize(pos); // TODO: compute better normal with gradient?
 
     gl_Position = projection * view * model * vec4(pos, 1.0);
     fragPosition = (model * vec4(pos, 1.0)).xyz;

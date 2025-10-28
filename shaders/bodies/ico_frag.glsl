@@ -9,9 +9,7 @@ layout(std140) uniform Material // Must match the GPUMaterial defined in src/mes
 };
 
 in vec3 fragPosition;
-in vec3 fragNormal;
 in vec3 spherePosition;
-// in vec2 fragTexCoord;
 
 layout(location = 0) out vec4 fragColor;
 
@@ -92,7 +90,10 @@ void main()
     float eclipseLightFactor = 1.0 - covered;
 
     vec3 lightDir = normalize(lightPos - fragPosition);
-    vec3 normal = normalize(fragNormal);
+    vec3 normal = normalize(spherePosition); // approximate normal on sphere
     float diffuse = max(dot(normal, lightDir), 0.0);
-    fragColor = vec4(color * diffuse, 1.0);
+
+    float ambient = 0.1;
+
+    fragColor = vec4(color * (diffuse * eclipseLightFactor + ambient), 1.0);
 }
