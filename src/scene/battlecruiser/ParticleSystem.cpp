@@ -84,24 +84,44 @@ int ParticleSystem::findUnusedParticle() {
     return 0;
 }
 
-void ParticleSystem::spawn(const glm::vec3& origin, const glm::vec3& speed, const glm::vec2& colorR, const glm::vec2& colorG, const glm::vec2& colorB, float coneAngle, float life, float lifeDeviation, float size, float sizeDeviation) {
+void ParticleSystem::spawn(const glm::mat4& model, const glm::vec3& origin) {
     static thread_local std::mt19937 rng(std::random_device{}());
     static thread_local std::uniform_real_distribution<float> dist01(0.0f, 1.0f);
 
     int idx = findUnusedParticle();
     Particle& p = _particles[idx];
-       
-    p.life = life + dist01(rng) * lifeDeviation;
-    p.pos = origin;
 
+    p.life = life + dist01(rng) * lifeDeviation;
+
+    // --- spatial radius spread ---
+    float angle = glm::two_pi<float>() * dist01(rng);
+    float radius = spawnRadius * sqrt(dist01(rng));
+    glm::vec3 offset(radius * cos(angle), radius * sin(angle), 0.0f);
+    glm::vec3 spawnPosLocal = origin + offset;
+
+    // --- position in world space ---
+    p.pos = glm::vec3(model * glm::vec4(spawnPosLocal, 1.0f));
+
+    // --- cone directional spread ---
     float coneAngleRad = glm::radians(coneAngle);
     float cosTheta = 1.0f - dist01(rng) * (1.0f - cos(coneAngleRad));
     float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
     float phi = glm::two_pi<float>() * dist01(rng);
-
     glm::vec3 dir(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
-    p.speed = dir + speed;
 
+    glm::mat3 rotation(model);
+    glm::vec3 worldDir = rotation * dir;
+
+    // --- velocity with jitter ---
+    glm::vec3 jitter(
+        (dist01(rng) - 0.5f) * velocitySpread,
+        (dist01(rng) - 0.5f) * velocitySpread,
+        (dist01(rng) - 0.5f) * velocitySpread
+    );
+
+    p.speed = worldDir + (rotation * speedInitParticle) + jitter;
+
+    // --- color and size ---
     std::uniform_int_distribution<int> distR(colorR.x, colorR.y);
     std::uniform_int_distribution<int> distG(colorG.x, colorG.y);
     std::uniform_int_distribution<int> distB(colorB.x, colorB.y);
@@ -115,20 +135,20 @@ void ParticleSystem::spawn(const glm::vec3& origin, const glm::vec3& speed, cons
     p.cameraDistance = -1.0f;
 }
 
-void ParticleSystem::update(const glm::mat4& model,float dt, const glm::vec3& camPos, const glm::vec3& speed, float lifeThreshold) {
+void ParticleSystem::update(const glm::mat4& model, float dt, const glm::vec3& camPos) {
     for (auto& p : _particles) {
         if (p.life > 0.0f) {
             p.life -= dt;
             if (p.life > 0.0f) {
-                p.speed += speed * dt * 0.5f;
+                // World-space motion
+                p.speed += p.speed * dt * 0.5f;
                 p.pos += p.speed * dt;
 
-                glm::vec3 worldPos = glm::vec3(model * glm::vec4(p.pos, 1.0f));
-                p.cameraDistance = glm::length(worldPos - camPos);
+                // Camera distance directly in world space
+                p.cameraDistance = glm::length(p.pos - camPos);
 
                 if (p.life < lifeThreshold) {
                     float lifeDiv = p.life / lifeThreshold;
-
                     p.a = static_cast<GLubyte>(glm::clamp(lifeDiv * 255.0f, 0.0f, 255.0f));
                 }
             }
@@ -155,9 +175,7 @@ void ParticleSystem::update(const glm::mat4& model,float dt, const glm::vec3& ca
 
             ++count;
         }
-        else {
-            break;
-        }
+        else break;
     }
 
     _aliveCount = count;

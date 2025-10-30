@@ -31,6 +31,7 @@ DISABLE_WARNINGS_POP()
 #include "scene/bodies/PlanetSystem.h"
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
+#include "scene/camera/BattlecruiserCamera.h"
 
 int WIDTH_WINDOW = 1280;
 int HEIGHT_WINDOW = 720;
@@ -76,6 +77,8 @@ void load_config(Config& config) {
     }
 }
 
+bool isBattlecruiserCamera = false;
+
 int main() {
     //// -------- Setup:
     /// ---- Load configuration
@@ -102,6 +105,7 @@ int main() {
 
     /// ---- Camera setup
     FreeCamera freecam(window, config);
+
     // TODO: set up battlecruiser camera (it needs another camera class
     // probably)
     //  - use the battlecruiser's position as lookat target
@@ -134,23 +138,13 @@ int main() {
     Skybox skybox;
 
     /// -- Battlecruiser
-    Battlecruiser battlecruiser;
+    Battlecruiser battlecruiser(window);
+
+    /// -- Camera Battlecruiser
+    BattlecruiserCamera battlecruiserCamera(window, config, battlecruiser);
 
     /// -- Battlecruiser Particles
     ParticleSystem particles;
-    // TODO: move these to particle system class
-    // TODO: load particle system params from config
-    glm::vec3 speedInitParticle = glm::vec3(0.0f, 0.0f, 2.5f);
-    glm::vec3 speedParticle = glm::vec3(0.0f, 0.0f, -8.5f);
-    glm::vec2 colorR = glm::vec2(233.0f, 255.f);
-    glm::vec2 colorG = glm::vec2(165.0f, 255.f);
-    glm::vec2 colorB = glm::vec2(0.0f, 0.0f);
-    float coneAngle = 50.0f;
-    float life = 2.0f;
-    float lifeDeviation = 2.0f;
-    float lifeThreshold = 1.0f;
-    float size = 1.0f;
-    float sizeDeviation = 1.0f;
 
     /// ---- Other setup
     // TODO : ????
@@ -171,6 +165,11 @@ int main() {
         window.updateInput();
         /// -- Update cameras
         freecam.update_input();
+
+
+        battlecruiserCamera.update_input();
+        battlecruiser.updateVelocityPosition((float)delta_time);
+
         /// -- Update bodies
         planet_system.update(time_warp * (float)delta_time);
 
@@ -194,42 +193,10 @@ int main() {
             // TODO: move these to particle system
             /// -- ImGui Particle System Controls
             ImGui::Separator();
-            // --- Particle Speed ---
-            ImGui::Text("Particle Speed");
-            ImGui::DragFloat3("Speed Init (x, y, z)",
-                              glm::value_ptr(speedInitParticle), 0.1f, -10.0f,
-                              10.0f);
-            ImGui::DragFloat3("Speed (x, y, z)", glm::value_ptr(speedParticle),
-                              0.1f, -10.0f, 10.0f);
+            ImGui::Text("Camera settings");
+            ImGui::Checkbox("Is battlecruiser camera", &isBattlecruiserCamera);
 
-            // --- Color Ranges ---
             ImGui::Separator();
-            ImGui::Text("Color Range (RGB Min/Max)");
-            ImGui::DragFloat2("Red Range", glm::value_ptr(colorR), 1.0f, 0.0f,
-                              255.0f);
-            ImGui::DragFloat2("Green Range", glm::value_ptr(colorG), 1.0f, 0.0f,
-                              255.0f);
-            ImGui::DragFloat2("Blue Range", glm::value_ptr(colorB), 1.0f, 0.0f,
-                              255.0f);
-
-            // --- Cone Angle ---
-            ImGui::Separator();
-            ImGui::Text("Emission Cone");
-            ImGui::SliderFloat("Cone Angle", &coneAngle, 0.0f, 180.0f,
-                               "%.1f deg");
-
-            // --- Life & Size ---
-            ImGui::Separator();
-            ImGui::Text("Particle Properties");
-            ImGui::DragFloat("Life", &life, 0.1f, 0.0f, 10.0f);
-            ImGui::DragFloat("Life Deviation", &lifeDeviation, 0.1f, 0.0f,
-                             10.0f);
-            ImGui::DragFloat("Life Threshold", &lifeThreshold, 0.1f, 0.1f,
-                             10.0f);
-
-            ImGui::DragFloat("Size", &size, 0.1f, 0.0f, 10.0f);
-            ImGui::DragFloat("Size Deviation", &sizeDeviation, 0.1f, 0.0f,
-                             10.0f);
         }
 
         ImGui::End();
@@ -240,7 +207,41 @@ int main() {
         reset_opengl_state();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+        if (isBattlecruiserCamera) {
+            active_camera = &battlecruiserCamera;
+        }
+        else {
+            active_camera = &freecam;
+        }
+
         if (debug_mode) {
+            reset_opengl_state();
+            battlecruiser.draw(
+                active_camera->get_view_matrix(), projection_matrix,
+                glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
+                skybox.getCubemapTexture());
+
+            /// -- Pass #6: Render battlecruiser Particles
+            // TODO: these should be in the particle class.
+            reset_opengl_state();
+            float particlesPerSecond = 1000.0f;
+            int newParticles =
+                static_cast<int>(delta_time * particlesPerSecond);
+            if (newParticles > 500) newParticles = 500;
+
+            for (int i = 0; i < newParticles; ++i) {
+                for (int j = 0;
+                    j < battlecruiser.getRelativePositionThrusters().size();
+                    j++) {
+                    particles.spawn(battlecruiser.getModelMatrix(),
+                        battlecruiser.getRelativePositionThrusters()[j]);
+                }
+            }
+
+            particles.update(battlecruiser.getModelMatrix(), (float)delta_time,
+                active_camera->get_position());
+            particles.draw(active_camera->get_view_matrix(), projection_matrix,
+                battlecruiser.getModelMatrix());
         } else {
             /// -- Pass #1: Render Skybox
             reset_opengl_state();
@@ -272,16 +273,13 @@ int main() {
                 for (int j = 0;
                      j < battlecruiser.getRelativePositionThrusters().size();
                      j++) {
-                    particles.spawn(
-                        battlecruiser.getRelativePositionThrusters()[j],
-                        speedInitParticle, colorR, colorG, colorB, coneAngle,
-                        life, lifeDeviation, size, sizeDeviation);
+                    particles.spawn(battlecruiser.getModelMatrix(),
+                        battlecruiser.getRelativePositionThrusters()[j]);
                 }
             }
 
             particles.update(battlecruiser.getModelMatrix(), (float)delta_time,
-                             active_camera->get_position(), speedParticle,
-                             lifeThreshold);
+                             active_camera->get_position());
             particles.draw(active_camera->get_view_matrix(), projection_matrix,
                            battlecruiser.getModelMatrix());
         }
