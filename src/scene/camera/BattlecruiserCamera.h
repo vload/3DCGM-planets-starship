@@ -68,7 +68,7 @@ public:
                 rotate_Y_around(delta.x);
             if (delta.y != 0.0f)
                 rotate_X_around(delta.y);
-        } 
+        }
     }
 
     void set_user_interaction(bool enabled) {
@@ -104,7 +104,7 @@ private:
     void rotate_Y_around(float angle) {
         glm::vec3 target = glm::vec3(battlecruiser.getModelMatrix()[3]);
         glm::vec3 targerDir = position - target;
-        targerDir = glm::angleAxis(-angle, glm::normalize(glm::vec3(glm::mat3(battlecruiser.getModelMatrix()) * Y_axis))) * targerDir;
+        targerDir = glm::angleAxis(-angle, Y_axis) * targerDir;
 
         position = target + targerDir;
 

@@ -2,12 +2,18 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
-#include <algorithm>
-#include <glad/glad.h>
 #include <framework/shader.h>
 #include <framework/mesh.h>
-#include "ParticleSystem.h"
 #include <framework/window.h>
+
+struct LightParticle {
+    glm::vec3 pos;
+    glm::vec3 dir;
+    glm::vec3 color;
+    float angle;
+    float thresholdLight;
+    float intensity;
+};
 
 class Battlecruiser {
     Window& window;
@@ -38,15 +44,14 @@ private:
     glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f));
 
     std::vector<glm::vec3> relativePositionThrusters = {
-        glm::vec3(0.0f, -0.5f, -21.0f),
-        glm::vec3(0.0f, 8.5f, -21.0f),
-        glm::vec3(4.5f, 4.0f, -21.0f),
-        glm::vec3(-4.5f, 4.0f, -21.0f)
+        glm::vec3(0.0f, -0.5f, -22.0f),
+        glm::vec3(0.0f, 8.5f, -22.0f),
+        glm::vec3(4.5f, 4.0f, -22.0f),
+        glm::vec3(-4.5f, 4.0f, -22.0f)
     };
 
     Shader mainShader;
     Shader reflectiveShader;
 
     std::vector<MeshGL> meshGLs;
-    LightParticle thruster;
 };

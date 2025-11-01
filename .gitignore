@@ -1,8 +1,117 @@
-build
-.vscode
+# ===========================================
+# General C++ / OpenGL Project .gitignore
+# For: Visual Studio, VS Code, and CLion
+# ===========================================
 
-# Ignore build output directory
+# ---- Build Artifacts ----
+build/
+Build/
+bin/
+Bin/
+obj/
+Obj/
 out/
+Out/
+*.o
+*.obj
+*.lo
+*.la
+*.al
+*.lib
+*.a
+*.la
+*.lo
+*.lai
+*.dll
+*.so
+*.dylib
+*.exe
+*.out
+*.app
 
-# Ignore Visual Studio folder
+# ---- Intermediate / Temporary files ----
+*.idb
+*.pdb
+*.ipch
+*.aps
+*.ncb
+*.sdf
+*.cachefile
+*.VC.db
+*.VC.VC.opendb
+
+# ---- CMake ----
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+Testing/
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# ---- Visual Studio ----
 .vs/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.vcxproj.user
+*.VC.db
+*.VC.opendb
+
+# ---- Visual Studio Code ----
+.vscode/
+*.code-workspace
+
+# ---- CLion / JetBrains ----
+.idea/
+cmake-build-*/
+
+# ---- OpenGL / Graphics related ----
+# Shader cache or compiled binaries
+*.spv
+*.shadercache
+*.glsl.temp
+*.glsl.bin
+
+# ---- Logs / Debug ----
+*.log
+*.tlog
+*.tmp
+*.temp
+*.dmp
+
+# ---- System Files ----
+.DS_Store
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# ---- Backup / Misc ----
+*~
+*.bak
+*.old
+*.orig
+*.swp
+*.swo
+
+# ---- Python venvs (if you use tools/scripts) ----
+venv/
+.env/
+__pycache__/
+*.pyc
+
+# ---- Package Managers ----
+# (in case you use vcpkg, conan, etc.)
+vcpkg_installed/
+.vcpkg-root
+.conan/
+conanbuildinfo.*
+CMakeUserPresets.json
+
+# ---- Project-specific local configs ----
+local_settings.json
+secrets.json

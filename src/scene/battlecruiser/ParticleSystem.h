@@ -1,9 +1,10 @@
 #pragma once
 #include <glm/glm.hpp>
 #include <vector>
-#include <algorithm>
 #include <glad/glad.h>
 #include <framework/shader.h>
+
+#include "Battlecruiser.h"
 
 struct Particle {
     glm::vec3 pos;
@@ -18,25 +19,20 @@ struct Particle {
     }
 };
 
-struct LightParticle {
-    glm::vec3 pos;
-    glm::vec3 dir;
-    glm::vec3 color;
-    float angle;
-    float thresholdLight;
-    float intensity;
-};
-
 class ParticleSystem {
+    Battlecruiser& battlecruiser;
 public:
-    ParticleSystem(int maxParticles = 100000);
+    explicit ParticleSystem(Battlecruiser& battlecruiser, int maxParticles = 100000);
     ~ParticleSystem();
 
-    void spawn(const glm::mat4& model, const glm::vec3& origin);
-    void update(const glm::mat4& model, float dt, const glm::vec3& camPos);
-    void draw(const glm::mat4& view, const glm::mat4& projection, const glm::mat4& model);
+    void spawn_stage(float dt);
+    void update_stage(float dt, const glm::vec3& camPos);
+    void draw_stage(const glm::mat4& view, const glm::mat4& projection);
+    void update(const glm::vec3& camPos, float dt);
 
 private:
+    void spawn_per_location(const glm::vec3& origin);
+
     int findUnusedParticle();
 
     int _maxParticles;

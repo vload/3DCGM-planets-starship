@@ -73,7 +73,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     unsigned int cubemapTexture)
 {
     // --- Setup once per frame ---
-    thruster = {
+    LightParticle thruster = {
         glm::vec3(0.0f, 4.0f, -50.0f),
         glm::vec3(0.0f, 0.0f, -1.0f),
         glm::vec3(1.0f, 0.5f, 0.1f),
@@ -133,43 +133,52 @@ void Battlecruiser::draw(const glm::mat4& view,
 }
 
 void Battlecruiser::updateVelocityPosition(float deltaTime) {
-    const float sensitivityRotation = 0.1f;
-    const float bankSensitivity = 0.5f;
-    const float maxBankAngle = glm::radians(25.0f);
+    static float currentBankAngle = 0.0f;
 
-    glm::vec3 previousVelocity = velocity;
+    float initialSpeed = glm::length(velocity);
+
+    const float bankSensitivity = glm::mix(0.4f, 1.0f, initialSpeed / 3);
+    const float maxBankAngle = glm::mix(glm::radians(5.0f), glm::radians(40.0f), initialSpeed / 3);
+    float sensitivityRotationX = glm::mix(0.2f, 1.8f, initialSpeed / 3);
+    float sensitivityRotationY = glm::mix(0.2f, 0.8f, initialSpeed / 3);
+
     glm::vec3 directionVector = getDirectionVector();
 
     if (window.isKeyPressed(GLFW_KEY_LEFT)) {
-        velocity -= glm::cross(directionVector, glm::vec3(0.0f, 1.0f, 0.0f)) * deltaTime * sensitivityRotation;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
     if (window.isKeyPressed(GLFW_KEY_RIGHT)) {
-        velocity += glm::cross(directionVector, glm::vec3(0.0f, 1.0f, 0.0f)) * deltaTime * sensitivityRotation;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
-    if (window.isKeyPressed(GLFW_KEY_UP)) {
-        velocity += glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime * sensitivityRotation;
+
+    float maxPitch = glm::radians(80.0f);
+    float pitchAngle = glm::asin(glm::dot(directionVector, getUpVector()));
+    glm::vec3 right = glm::normalize(glm::cross(directionVector, getUpVector()));
+
+    if (window.isKeyPressed(GLFW_KEY_UP) && pitchAngle < maxPitch) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) * directionVector;
     }
-    if (window.isKeyPressed(GLFW_KEY_DOWN)) {
-        velocity -= glm::vec3(0.0f, 1.0f, 0.0f) * deltaTime * sensitivityRotation;
+    if (window.isKeyPressed(GLFW_KEY_DOWN) && pitchAngle > -maxPitch) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) * directionVector;
     }
+
     if (window.isKeyPressed(GLFW_KEY_KP_ADD)) {
-        velocity *= 1.01;
+        initialSpeed += 0.1f;
     }
     if (window.isKeyPressed(GLFW_KEY_KP_SUBTRACT)) {
-        velocity /= 1.01;
+        initialSpeed -= 0.1f;
     }
 
-    float speed = glm::length(velocity);
-    if (speed > 2.0f) {
-        velocity = glm::normalize(velocity) * 2.0f;
+    if (initialSpeed > 3.0f) {
+        initialSpeed = 3.0f;
     }
-    if (speed < 0.5f) {
-        velocity = glm::normalize(velocity) * 0.5f;
+    if (initialSpeed < 0.2f) {
+        initialSpeed = 0.2f;
     }
-
+    directionVector = glm::normalize(directionVector);
+    velocity = directionVector * initialSpeed;
     position += velocity * deltaTime;
 
-    static float currentBankAngle = 0.0f;
 
     float targetBankAngle = 0.0f;
     if (window.isKeyPressed(GLFW_KEY_RIGHT))
@@ -179,11 +188,8 @@ void Battlecruiser::updateVelocityPosition(float deltaTime) {
 
     currentBankAngle = glm::mix(currentBankAngle, targetBankAngle, deltaTime * bankSensitivity);
 
-    glm::vec3 worldUp(0.0f, 1.0f, 0.0f);
-    glm::vec3 right = glm::normalize(glm::cross(directionVector, worldUp));
-
     glm::mat4 rollMatrix = glm::rotate(glm::mat4(1.0f), currentBankAngle, directionVector);
-    glm::vec3 bankedUp = glm::normalize(glm::vec3(rollMatrix * glm::vec4(worldUp, 0.0f)));
+    glm::vec3 bankedUp = glm::normalize(glm::vec3(rollMatrix * glm::vec4(glm::vec3(0.0f, 1.0f, 0.0f), 0.0f)));
 
     upVector = bankedUp;
 }
@@ -215,12 +221,7 @@ glm::mat4 Battlecruiser::getModelMatrix() {
 }
 
 glm::vec3 Battlecruiser::getDirectionVector() {
-    glm::vec3 direction = glm::normalize(velocity);
-
-    if (glm::length(direction) < 0.0001f)
-        direction = glm::vec3(0.0f, 0.0f, 1.0f);
-
-    return direction;
+    return glm::normalize(velocity);
 }
 
 glm::vec3 Battlecruiser::getUpVector() {

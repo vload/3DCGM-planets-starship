@@ -4,6 +4,7 @@
 // which needs to be included AFTER glew). Can't wait for modules to fix this
 // stuff...
 #include <framework/disable_all_warnings.h>
+#include <scene/battlecruiser/ParticleSystem.h>
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 // Include glad before glfw3
@@ -66,18 +67,16 @@ void reset_opengl_state() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void load_config(Config& config) {
+void load_config(Config &config) {
     try {
         config.load_config(RESOURCE_ROOT "settings.toml");
-    } catch (const std::exception& e) {
+    } catch (const std::exception &e) {
         std::cerr << "Error loading config: " << e.what() << std::endl;
         // Handle error appropriately (e.g., set default values or exit)
         // For now, we'll just exit
         std::exit(EXIT_FAILURE);
     }
 }
-
-bool isBattlecruiserCamera = false;
 
 int main() {
     //// -------- Setup:
@@ -94,7 +93,7 @@ int main() {
     bool window_resized = false;
     window.registerWindowResizeCallback([&](glm::ivec2 newSize) {
         std::cout << "Window resized to: " << newSize.x << "x" << newSize.y
-                  << std::endl;
+                << std::endl;
         window_resized = true;
     });
     window.registerWindowResizeCallback([&](glm::ivec2 newSize) {
@@ -106,17 +105,9 @@ int main() {
     /// ---- Camera setup
     FreeCamera freecam(window, config);
 
-    // TODO: set up battlecruiser camera (it needs another camera class
-    // probably)
-    //  - use the battlecruiser's position as lookat target
-    //  - position move with mouse on a sphere around the battlecruiser
-    //  (!tricky)
-    // BattlecruiserCamera battlecruiserCam(window, config, battlecruiser);
-    // TODO: minimap camera
+    Camera *active_camera = &freecam;
 
-    // TODO: toggle camera button from battlecruiser to freecam and back
-    Camera* active_camera = &freecam;
-    // Camera *minimap_camera = &minimapCam;
+    // TODO: minimap camera
 
     glm::mat4 projection_matrix = glm::perspective(
         glm::radians(config.camera_fov_degrees),
@@ -144,7 +135,18 @@ int main() {
     BattlecruiserCamera battlecruiserCamera(window, config, battlecruiser);
 
     /// -- Battlecruiser Particles
-    ParticleSystem particles;
+    ParticleSystem particles(battlecruiser);
+
+    window.registerKeyCallback([&](int key, int scancode, int action, int mods) {
+        if (action == GLFW_PRESS) {
+            if (key == GLFW_KEY_1) {
+                active_camera = &freecam;
+            }
+            if (key == GLFW_KEY_2) {
+                active_camera = &battlecruiserCamera;
+            }
+        }
+    });
 
     /// ---- Other setup
     // TODO : ????
@@ -165,13 +167,15 @@ int main() {
         window.updateInput();
         /// -- Update cameras
         freecam.update_input();
-
-
+        // -- Update battlecruiser
+        battlecruiser.updateVelocityPosition(static_cast<float>(delta_time));
+        // -- Update battlecruiser camera
         battlecruiserCamera.update_input();
-        battlecruiser.updateVelocityPosition((float)delta_time);
+        // -- Update battlecruiser particles
+        particles.update(active_camera->get_position(), static_cast<float>(delta_time));
 
         /// -- Update bodies
-        planet_system.update(time_warp * (float)delta_time);
+        planet_system.update(time_warp * (float) delta_time);
 
         /// ---- ImGui
         // window.update_input already called ImGui::NewFrame()
@@ -185,16 +189,11 @@ int main() {
         }
         if (debug_mode) {
             // nothing to debug
-        } else {  // not debug mode
+        } else {
+            // not debug mode
             ImGui::SliderFloat("Time Warp", &time_warp, 0.0f, 10.0f, "%.2f x");
             /// -- ImGui Body selection and controls
             planet_system.imgui();
-
-            // TODO: move these to particle system
-            /// -- ImGui Particle System Controls
-            ImGui::Separator();
-            ImGui::Text("Camera settings");
-            ImGui::Checkbox("Is battlecruiser camera", &isBattlecruiserCamera);
 
             ImGui::Separator();
         }
@@ -207,41 +206,7 @@ int main() {
         reset_opengl_state();
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        if (isBattlecruiserCamera) {
-            active_camera = &battlecruiserCamera;
-        }
-        else {
-            active_camera = &freecam;
-        }
-
         if (debug_mode) {
-            reset_opengl_state();
-            battlecruiser.draw(
-                active_camera->get_view_matrix(), projection_matrix,
-                glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
-                skybox.getCubemapTexture());
-
-            /// -- Pass #6: Render battlecruiser Particles
-            // TODO: these should be in the particle class.
-            reset_opengl_state();
-            float particlesPerSecond = 1000.0f;
-            int newParticles =
-                static_cast<int>(delta_time * particlesPerSecond);
-            if (newParticles > 500) newParticles = 500;
-
-            for (int i = 0; i < newParticles; ++i) {
-                for (int j = 0;
-                    j < battlecruiser.getRelativePositionThrusters().size();
-                    j++) {
-                    particles.spawn(battlecruiser.getModelMatrix(),
-                        battlecruiser.getRelativePositionThrusters()[j]);
-                }
-            }
-
-            particles.update(battlecruiser.getModelMatrix(), (float)delta_time,
-                active_camera->get_position());
-            particles.draw(active_camera->get_view_matrix(), projection_matrix,
-                battlecruiser.getModelMatrix());
         } else {
             /// -- Pass #1: Render Skybox
             reset_opengl_state();
@@ -262,26 +227,8 @@ int main() {
                 skybox.getCubemapTexture());
 
             /// -- Pass #6: Render battlecruiser Particles
-            // TODO: these should be in the particle class.
             reset_opengl_state();
-            float particlesPerSecond = 1000.0f;
-            int newParticles =
-                static_cast<int>(delta_time * particlesPerSecond);
-            if (newParticles > 500) newParticles = 500;
-
-            for (int i = 0; i < newParticles; ++i) {
-                for (int j = 0;
-                     j < battlecruiser.getRelativePositionThrusters().size();
-                     j++) {
-                    particles.spawn(battlecruiser.getModelMatrix(),
-                        battlecruiser.getRelativePositionThrusters()[j]);
-                }
-            }
-
-            particles.update(battlecruiser.getModelMatrix(), (float)delta_time,
-                             active_camera->get_position());
-            particles.draw(active_camera->get_view_matrix(), projection_matrix,
-                           battlecruiser.getModelMatrix());
+            particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
         }
 
         //// ---- Swap buffers
