@@ -26,6 +26,6 @@ void main()
                   + CameraRight_worldspace * quadCorner.x * size
                   + CameraUp_worldspace    * quadCorner.y * size;
 
-    gl_Position = projection * view * model * vec4(worldPos, 1.0);
+    gl_Position = projection * view * vec4(worldPos, 1.0);
     vColor = inColor;
 }

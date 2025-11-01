@@ -5,8 +5,9 @@
 #include <framework/mesh.h>
 #include <random>
 #include <iostream>
+#include <glm/gtx/quaternion.hpp>
 
-Battlecruiser::Battlecruiser() {
+Battlecruiser::Battlecruiser(Window& window): window(window) {
     const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
     
     for (const auto& mesh : meshes)
@@ -72,7 +73,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     unsigned int cubemapTexture)
 {
     // --- Setup once per frame ---
-    thruster = {
+    LightParticle thruster = {
         glm::vec3(0.0f, 4.0f, -50.0f),
         glm::vec3(0.0f, 0.0f, -1.0f),
         glm::vec3(1.0f, 0.5f, 0.1f),
@@ -88,7 +89,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     mainShader.bind();
 
     glUniformMatrix4fv(mainShader.getUniformLocation("model"), 1, GL_FALSE,
-                       glm::value_ptr(modelMatrix));
+                       glm::value_ptr(getModelMatrix()));
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
@@ -119,8 +120,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     glUniform1i(reflectiveShader.getUniformLocation("environmentMap"), 0);
     glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
-    glm::mat4 mvp = projection * view * modelMatrix;
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(modelMatrix));
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(getModelMatrix()));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
@@ -132,14 +132,102 @@ void Battlecruiser::draw(const glm::mat4& view,
     }
 }
 
+void Battlecruiser::updateVelocityPosition(float deltaTime) {
+    static float currentBankAngle = 0.0f;
+
+    float initialSpeed = glm::length(velocity);
+
+    const float bankSensitivity = glm::mix(0.4f, 1.0f, initialSpeed / 3);
+    const float maxBankAngle = glm::mix(glm::radians(5.0f), glm::radians(40.0f), initialSpeed / 3);
+    float sensitivityRotationX = glm::mix(0.2f, 1.8f, initialSpeed / 3);
+    float sensitivityRotationY = glm::mix(0.2f, 0.8f, initialSpeed / 3);
+
+    glm::vec3 directionVector = getDirectionVector();
+
+    if (window.isKeyPressed(GLFW_KEY_LEFT)) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+    }
+    if (window.isKeyPressed(GLFW_KEY_RIGHT)) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+    }
+
+    float maxPitch = glm::radians(80.0f);
+    float pitchAngle = glm::asin(glm::dot(directionVector, getUpVector()));
+    glm::vec3 right = glm::normalize(glm::cross(directionVector, getUpVector()));
+
+    if (window.isKeyPressed(GLFW_KEY_UP) && pitchAngle < maxPitch) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) * directionVector;
+    }
+    if (window.isKeyPressed(GLFW_KEY_DOWN) && pitchAngle > -maxPitch) {
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) * directionVector;
+    }
+
+    if (window.isKeyPressed(GLFW_KEY_KP_ADD)) {
+        initialSpeed += 0.1f;
+    }
+    if (window.isKeyPressed(GLFW_KEY_KP_SUBTRACT)) {
+        initialSpeed -= 0.1f;
+    }
+
+    if (initialSpeed > 3.0f) {
+        initialSpeed = 3.0f;
+    }
+    if (initialSpeed < 0.2f) {
+        initialSpeed = 0.2f;
+    }
+    directionVector = glm::normalize(directionVector);
+    velocity = directionVector * initialSpeed;
+    position += velocity * deltaTime;
+
+
+    float targetBankAngle = 0.0f;
+    if (window.isKeyPressed(GLFW_KEY_RIGHT))
+        targetBankAngle = maxBankAngle;
+    else if (window.isKeyPressed(GLFW_KEY_LEFT))
+        targetBankAngle = -maxBankAngle;
+
+    currentBankAngle = glm::mix(currentBankAngle, targetBankAngle, deltaTime * bankSensitivity);
+
+    glm::mat4 rollMatrix = glm::rotate(glm::mat4(1.0f), currentBankAngle, directionVector);
+    glm::vec3 bankedUp = glm::normalize(glm::vec3(rollMatrix * glm::vec4(glm::vec3(0.0f, 1.0f, 0.0f), 0.0f)));
+
+    upVector = bankedUp;
+}
+
 
 std::vector<glm::vec3> Battlecruiser::getRelativePositionThrusters() {
     return relativePositionThrusters;
 }
 
 glm::mat4 Battlecruiser::getModelMatrix() {
-    return modelMatrix;
+    glm::mat4 translationMat = glm::translate(glm::mat4(1.0f), position);
+
+    glm::vec3 dirV = getDirectionVector();
+    glm::vec3 upV = getUpVector();
+    if (glm::abs(glm::dot(dirV, upV)) > 0.999f) {
+        upV = glm::normalize(glm::abs(dirV.x) < 0.9f ? glm::vec3(1, 0, 0) : glm::vec3(0, 1, 0));
+    }
+
+    glm::vec3 right = glm::normalize(cross(upV, dirV));
+    glm::vec3 upOrt = glm::cross(dirV, right);
+    glm::vec3 fwd = dirV;
+
+    glm::mat4 rotationMat(1.0f);
+    rotationMat[0] = glm::vec4(right, 0.0f);
+    rotationMat[1] = glm::vec4(upOrt, 0.0f);
+    rotationMat[2] = glm::vec4(fwd, 0.0f);
+
+    return translationMat * rotationMat * modelMatrix;
 }
+
+glm::vec3 Battlecruiser::getDirectionVector() {
+    return glm::normalize(velocity);
+}
+
+glm::vec3 Battlecruiser::getUpVector() {
+    return glm::normalize(upVector);
+}
+
 
 Battlecruiser::~Battlecruiser() {
     for (const MeshGL& m : meshGLs)

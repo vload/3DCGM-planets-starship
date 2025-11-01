@@ -77,7 +77,7 @@ GLint Shader::getUniformLocation(const std::string& name) const
 {
     GLint loc = glGetUniformLocation(m_program, name.c_str());
     if (loc == GL_INVALID_INDEX) {
-        std::cerr << "Warning : Could not find uniform " << name << std::endl;
+        // std::cerr << "Warning : Could not find uniform " << name << std::endl;
     }
     return loc;
 }

@@ -2,15 +2,23 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
-#include <algorithm>
-#include <glad/glad.h>
 #include <framework/shader.h>
 #include <framework/mesh.h>
-#include "ParticleSystem.h"
+#include <framework/window.h>
+
+struct LightParticle {
+    glm::vec3 pos;
+    glm::vec3 dir;
+    glm::vec3 color;
+    float angle;
+    float thresholdLight;
+    float intensity;
+};
 
 class Battlecruiser {
+    Window& window;
 public:
-    Battlecruiser();
+    Battlecruiser(Window& window);
     ~Battlecruiser();
 
     void draw(const glm::mat4& view,
@@ -18,13 +26,23 @@ public:
         const glm::vec3& lightPos,
         const glm::vec3& cameraPos,
         unsigned int cubemapTexture);
+
+    void updateVelocityPosition(float deltaTime);
+
     std::vector<glm::vec3> getRelativePositionThrusters();
     glm::mat4 getModelMatrix();
 
+    glm::vec3 getDirectionVector();
+    glm::vec3 getUpVector();
+
 private:
-    glm::vec3 translationVector = glm::vec3(150.0f, 20.0f, 20.0f);
-    glm::mat4 modelMatrix = glm::translate(glm::scale(glm::mat4(1.0f), glm::vec3(0.05f)), translationVector);
-    //glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f));
+    glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
+    glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 1.0f);
+
+    glm::vec3 upVector = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f));
+
     std::vector<glm::vec3> relativePositionThrusters = {
         glm::vec3(0.0f, -0.5f, -22.0f),
         glm::vec3(0.0f, 8.5f, -22.0f),
@@ -36,5 +54,4 @@ private:
     Shader reflectiveShader;
 
     std::vector<MeshGL> meshGLs;
-    LightParticle thruster;
 };
