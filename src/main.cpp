@@ -102,6 +102,10 @@ int main() {
         WIDTH_WINDOW = newSize.x;
         HEIGHT_WINDOW = newSize.y;
     });
+    glm::ivec2 frameSizeWindow = window.getFrameBufferSize();
+
+    WIDTH_WINDOW = frameSizeWindow.x;
+    HEIGHT_WINDOW = frameSizeWindow.y;
 
     /// ---- Camera setup
     FreeCamera freecam(window, config);
@@ -137,9 +141,6 @@ int main() {
 
     /// -- Battlecruiser Particles
     ParticleSystem particles(battlecruiser);
-
-    /// -- Battlecruiser Bezier Path
-    BezierPath bezierPath(battlecruiser);
 
     window.registerKeyCallback([&](int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS) {
@@ -199,7 +200,8 @@ int main() {
             /// -- ImGui Body selection and controls
             planet_system.imgui();
 
-            ImGui::Separator();
+            /// -- ImGui Battlecruiser controls
+            battlecruiser.imGuiControl();
         }
 
         ImGui::End();
@@ -230,13 +232,13 @@ int main() {
                 glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
                 skybox.getCubemapTexture());
 
-            /// -- Pass #6: Render battlecruiser Particles
+            /// -- Pass #6: Render battlecruiser Bezier Path
+            reset_opengl_state();
+            battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
+
+            /// -- Pass #7: Render battlecruiser Particles
             reset_opengl_state();
             particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
-
-            /// -- Pass #7: Render battlecruiser Bezier Path
-            reset_opengl_state();
-            bezierPath.draw(active_camera->get_view_matrix(), projection_matrix);
         }
 
         //// ---- Swap buffers

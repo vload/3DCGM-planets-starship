@@ -7,6 +7,8 @@
 #include <framework/mesh.h>
 #include <framework/window.h>
 
+#include "BezierPath.h"
+
 struct LightParticle {
     glm::vec3 pos;
     glm::vec3 dir;
@@ -14,13 +16,6 @@ struct LightParticle {
     float angle;
     float thresholdLight;
     float intensity;
-};
-
-struct BezierCurve {
-    glm::vec3 p0;
-    glm::vec3 p1;
-    glm::vec3 p2;
-    glm::vec3 p3;
 };
 
 class Battlecruiser {
@@ -37,8 +32,8 @@ public:
               const glm::vec3 &lightPos,
               const glm::vec3 &cameraPos,
               unsigned int cubemapTexture);
-
-    std::vector<BezierCurve> getBezierCurves();
+    void drawBezierPath(const glm::mat4 &view,
+              const glm::mat4 &projection);
 
     void updatePosition(float deltaTime);
 
@@ -50,12 +45,12 @@ public:
 
     glm::vec3 getUpVector();
 
-private:
-    bool isFollowingPath = true;
+    virtual void imGuiControl();
 
-    float timeBezierPath = 0;
-    int currentCurvePath = -1;
-    std::vector<BezierCurve> bezier_curve_list;
+private:
+    BezierPath bezierPath;
+
+    bool isFollowingPath = false;
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -77,10 +72,6 @@ private:
 
     std::vector<MeshGL> meshGLs;
 
-    void initializeBezierPathMovement();
     void updateVelocityPositionFreeMovement(float deltaTime);
     void updateVelocityPositionPathMovement(float deltaTime);
-
-    static glm::vec3 derivativeBezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t);
-    static glm::vec3 bezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t);
 };

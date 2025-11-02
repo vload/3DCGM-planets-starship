@@ -1,4 +1,5 @@
 #include "Battlecruiser.h"
+#include "BezierPath.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <cstdlib>
 #include <framework/shader.h>
@@ -6,6 +7,8 @@
 #include <random>
 #include <iostream>
 #include <glm/gtx/quaternion.hpp>
+#include <imgui/imgui.h>
+
 
 Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
     const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
@@ -49,9 +52,6 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
 
         meshGLs.push_back(m);
     }
-
-    // Set up VBO/IBO/VAO for the quad for the bezier
-
 
     mainShader =
             ShaderBuilder()
@@ -134,120 +134,28 @@ void Battlecruiser::draw(const glm::mat4 &view,
     }
 }
 
-std::vector<BezierCurve> Battlecruiser::getBezierCurves() {
+void Battlecruiser::drawBezierPath(const glm::mat4 &view,
+              const glm::mat4 &projection) {
     if (isFollowingPath) {
-        return bezier_curve_list;
+        glm::vec2 viewport = window.getFrameBufferSize();
+
+        bezierPath.draw(view, projection, modelMatrix, viewport);
     }
-    return {};
 }
-
-void Battlecruiser::initializeBezierPathMovement() {
-    const auto &pathInfo = config.battlecruiser_path_info;
-
-    // --- Safety checks ---
-    const size_t numPoints = pathInfo.origin_point_list.size();
-    if (numPoints == 0 ||
-        pathInfo.previous_point_list.size() != numPoints ||
-        pathInfo.next_point_factor_list.size() != numPoints) {
-        std::cerr << "Invalid battlecruiser path configuration! Cannot create Bezier Path";
-        return;
-    }
-
-    // --- Reset state ---
-    timeBezierPath = 0.0f;
-    currentCurvePath = 0;
-    bezier_curve_list.clear();
-
-    // --- First curve ---
-    glm::vec3 firstControl = position + glm::normalize(velocity) * pathInfo.start_point_factor;
-    bezier_curve_list.push_back({
-        position,
-        firstControl,
-        pathInfo.previous_point_list[0],
-        pathInfo.origin_point_list[0]
-    });
-
-    // --- Middle curves ---
-    for (size_t i = 1; i < numPoints; ++i) {
-        const glm::vec3 &prevOrigin = pathInfo.origin_point_list[i - 1];
-        const glm::vec3 &prevPrev = pathInfo.previous_point_list[i - 1];
-        float nextFactor = pathInfo.next_point_factor_list[i - 1];
-
-        glm::vec3 nextOriginPointMiddle = prevOrigin + glm::normalize(prevOrigin - prevPrev) * nextFactor;
-
-        bezier_curve_list.push_back({
-            prevOrigin,
-            nextOriginPointMiddle,
-            pathInfo.previous_point_list[i],
-            pathInfo.origin_point_list[i]
-        });
-    }
-
-    // --- Last curve ---
-    const size_t last = numPoints - 1;
-    glm::vec3 lastOrigin = pathInfo.origin_point_list[last];
-    glm::vec3 lastPrev = pathInfo.previous_point_list[last];
-    float lastFactor = pathInfo.next_point_factor_list[last];
-
-    glm::vec3 nextOriginPointLast = lastOrigin + glm::normalize(lastOrigin - lastPrev) * lastFactor;
-
-    bezier_curve_list.push_back({
-        lastOrigin,
-        nextOriginPointLast,
-        position - glm::normalize(velocity) * pathInfo.start_point_factor,
-        position
-    });
-}
-
 
 void Battlecruiser::updatePosition(float deltaTime) {
     if (isFollowingPath) {
-        if (currentCurvePath == -1) {
-            initializeBezierPathMovement();
-        }
-
         updateVelocityPositionPathMovement(deltaTime);
     } else {
-        updatePosition(deltaTime);
+        updateVelocityPositionFreeMovement(deltaTime);
     }
 }
-
-glm::vec3 Battlecruiser::bezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
-    return std::pow(1 - t, 3.0f) * p0 + 3 * std::pow(1 - t, 2.0f) * t * p1 + 3 * (1 - t) * std::pow(t, 2.0f) * p2 +
-           std::pow(t, 3.0f) * p3;
-}
-
-
-glm::vec3 Battlecruiser::derivativeBezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
-    return 3 * std::pow(1 - t, 2.0f) * (p1 - p0) + 6 * (1 - t) * t * (p2 - p1) + 3 * std::pow(t, 2.0f) * (p3 - p2);
-}
-
 
 void Battlecruiser::updateVelocityPositionPathMovement(float deltaTime) {
-    if (timeBezierPath == 1.0f) {
-        timeBezierPath = 0.0f;
-        currentCurvePath += 1;
+    bezierPath.updateVelocityPositionPathMovement(deltaTime);
 
-        if (currentCurvePath == bezier_curve_list.size())
-            currentCurvePath = 0;
-    }
-
-    float speed = glm::length(velocity);
-    glm::vec3 derivativeBezier = Battlecruiser::derivativeBezier(bezier_curve_list[currentCurvePath].p0,
-                                                                 bezier_curve_list[currentCurvePath].p1,
-                                                                 bezier_curve_list[currentCurvePath].p2,
-                                                                 bezier_curve_list[currentCurvePath].p3,
-                                                                 timeBezierPath);
-    float lengthCurveBezier = glm::length(derivativeBezier);
-
-    timeBezierPath += (speed / lengthCurveBezier) * deltaTime;
-    timeBezierPath = glm::clamp(timeBezierPath, 0.0f, 1.0f);
-
-    std::cout << timeBezierPath << std::endl;
-
-    position = bezier(bezier_curve_list[currentCurvePath].p0, bezier_curve_list[currentCurvePath].p1,
-                      bezier_curve_list[currentCurvePath].p2, bezier_curve_list[currentCurvePath].p3, timeBezierPath);
-    velocity = glm::normalize(derivativeBezier) * speed;
+    position = bezierPath.getCurrentPosition();
+    velocity = bezierPath.getCurrentVelocity();
 }
 
 
@@ -351,6 +259,14 @@ glm::vec3 Battlecruiser::getUpVector() {
     return glm::normalize(upVector);
 }
 
+void Battlecruiser::imGuiControl() {
+    ImGui::Separator();
+    ImGui::Text("Battlecruiser Movement");
+    if (ImGui::Checkbox("Follow Bezier Path", &isFollowingPath)) {
+        bezierPath.initializeBezierPathMovement(config.battlecruiser_path_info, position, velocity);
+    }
+}
+
 
 Battlecruiser::~Battlecruiser() {
     for (const MeshGL &m: meshGLs) {
@@ -359,3 +275,4 @@ Battlecruiser::~Battlecruiser() {
         glDeleteVertexArrays(1, &m.vao);
     }
 }
+
