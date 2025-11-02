@@ -19,16 +19,15 @@ ico_mesh_resolution = 5
 # TODO: add star params
 # TODO: add earth params
 planets_info = [
-# example entries:
-# [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
-# [type, radius, parent_id, orbit_direction, orbit_small_r, orbit_large_r, orbit_normal, orbit_period]
-# type can be "star", "earth", or "body" for now
+    # example entries:
+    # [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
+    # [type, radius, parent_id, orbit_direction, orbit_small_r, orbit_large_r, orbit_normal, orbit_period]
+    # type can be "star", "earth", or "body" for now
 
     # Default single planet system
-  ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
-  ["earth", 1.0, 0, [1.0, 0.0, 0.0], 40.0, 40.0, [0.0, 1.0, 0.0], 100000.0],
-  ["body", 0.5, 1, [0.0, 0.0, 1.0], 10.0, 10.0, [0.0, 1.0, 0.0], 2.0],
-
+    ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
+    ["earth", 1.0, 0, [1.0, 0.0, 0.0], 40.0, 40.0, [0.0, 1.0, 0.0], 100000.0],
+    ["body", 0.5, 1, [0.0, 0.0, 1.0], 10.0, 10.0, [0.0, 1.0, 0.0], 2.0],
     # Example multi-planet system
     # # Star
     # ["star", 6.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
@@ -63,8 +62,17 @@ planets_info = [
 # TODO: battlecruiser model path could go here
 [battlecruiser.thrusters]
 # TODO: battlecruiser thruster particle params could go here
+[battlecruiser.path]
+start_point_factor = 5.2
+end_point_factor = 5.4
+path_points_list = [
+    [[10.0, 0.0, 10.0], [20.0, 0.0, 30.0], 5.0],
+    [[-10.0, 0.0, 20.0], [30.0, 0.0, -20.0], 5.1],
+    [[30.0, -2.0, 30.0], [20.0, 0.0, 40.0], 5.3],
+]
 
 [shadows]
 enable_eclipse_shadows = true
 enable_shaddow_mapping_planets = true
 shadow_map_size = 8192
+

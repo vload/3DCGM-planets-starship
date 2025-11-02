@@ -33,6 +33,7 @@ DISABLE_WARNINGS_POP()
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
 #include "scene/camera/BattlecruiserCamera.h"
+#include <scene/battlecruiser/BezierPath.h>
 
 int WIDTH_WINDOW = 1280;
 int HEIGHT_WINDOW = 720;
@@ -129,13 +130,16 @@ int main() {
     Skybox skybox;
 
     /// -- Battlecruiser
-    Battlecruiser battlecruiser(window);
+    Battlecruiser battlecruiser(window, config);
 
     /// -- Camera Battlecruiser
     BattlecruiserCamera battlecruiserCamera(window, config, battlecruiser);
 
     /// -- Battlecruiser Particles
     ParticleSystem particles(battlecruiser);
+
+    /// -- Battlecruiser Bezier Path
+    BezierPath bezierPath(battlecruiser);
 
     window.registerKeyCallback([&](int key, int scancode, int action, int mods) {
         if (action == GLFW_PRESS) {
@@ -168,7 +172,7 @@ int main() {
         /// -- Update cameras
         freecam.update_input();
         // -- Update battlecruiser
-        battlecruiser.updateVelocityPosition(static_cast<float>(delta_time));
+        battlecruiser.updatePosition(static_cast<float>(delta_time));
         // -- Update battlecruiser camera
         battlecruiserCamera.update_input();
         // -- Update battlecruiser particles
@@ -229,6 +233,10 @@ int main() {
             /// -- Pass #6: Render battlecruiser Particles
             reset_opengl_state();
             particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
+
+            /// -- Pass #7: Render battlecruiser Bezier Path
+            reset_opengl_state();
+            bezierPath.draw(active_camera->get_view_matrix(), projection_matrix);
         }
 
         //// ---- Swap buffers

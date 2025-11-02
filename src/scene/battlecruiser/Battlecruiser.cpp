@@ -7,11 +7,10 @@
 #include <iostream>
 #include <glm/gtx/quaternion.hpp>
 
-Battlecruiser::Battlecruiser(Window& window): window(window) {
+Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
     const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
-    
-    for (const auto& mesh : meshes)
-    {
+
+    for (const auto &mesh: meshes) {
         MeshGL m;
 
         // Create VAO
@@ -26,17 +25,18 @@ Battlecruiser::Battlecruiser(Window& window): window(window) {
         // Create and upload index buffer
         glGenBuffers(1, &m.ibo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.triangles.size() * sizeof(glm::uvec3), mesh.triangles.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.triangles.size() * sizeof(glm::uvec3), mesh.triangles.data(),
+                     GL_STATIC_DRAW);
 
         // Vertex attributes
         glEnableVertexAttribArray(0); // position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, position));
 
         glEnableVertexAttribArray(1); // normal
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, normal));
 
         glEnableVertexAttribArray(2); //tex Coordinates
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, texCoord));
 
         glBindVertexArray(0);
 
@@ -45,33 +45,35 @@ Battlecruiser::Battlecruiser(Window& window): window(window) {
 
         std::cout << "Mesh detected: " << m.materialName << std::endl;
         std::cout << "Mesh vertices: " << mesh.vertices.size()
-            << " triangles: " << mesh.triangles.size() << std::endl;
+                << " triangles: " << mesh.triangles.size() << std::endl;
 
         meshGLs.push_back(m);
     }
 
+    // Set up VBO/IBO/VAO for the quad for the bezier
+
+
     mainShader =
-        ShaderBuilder()
+            ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_frag.glsl")
+                      "shaders/battlecruiser/shader_frag.glsl")
             .build();
     reflectiveShader =
-        ShaderBuilder()
+            ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/glass_shader_frag.glsl")
+                      "shaders/battlecruiser/glass_shader_frag.glsl")
             .build();
 }
 
-void Battlecruiser::draw(const glm::mat4& view,
-    const glm::mat4& projection,
-    const glm::vec3& lightPos,
-    const glm::vec3& cameraPos,
-    unsigned int cubemapTexture)
-{
+void Battlecruiser::draw(const glm::mat4 &view,
+                         const glm::mat4 &projection,
+                         const glm::vec3 &lightPos,
+                         const glm::vec3 &cameraPos,
+                         unsigned int cubemapTexture) {
     // --- Setup once per frame ---
     LightParticle thruster = {
         glm::vec3(0.0f, 4.0f, -50.0f),
@@ -83,7 +85,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     };
 
     // Disable face culling to render inside the windows
-    glDisable(GL_CULL_FACE); 
+    glDisable(GL_CULL_FACE);
 
     // --- Pass 1: opaque meshes ---
     mainShader.bind();
@@ -102,7 +104,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
 
     // Draw all opaque meshes that use the main shader
-    for (const auto& m : meshGLs) {
+    for (const auto &m: meshGLs) {
         if (m.materialName == "Steel_-_Satin") {
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
@@ -124,7 +126,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    for (const auto& m : meshGLs) {
+    for (const auto &m: meshGLs) {
         if (m.materialName == "Window-Cabin-Material") {
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
@@ -132,7 +134,124 @@ void Battlecruiser::draw(const glm::mat4& view,
     }
 }
 
-void Battlecruiser::updateVelocityPosition(float deltaTime) {
+std::vector<BezierCurve> Battlecruiser::getBezierCurves() {
+    if (isFollowingPath) {
+        return bezier_curve_list;
+    }
+    return {};
+}
+
+void Battlecruiser::initializeBezierPathMovement() {
+    const auto &pathInfo = config.battlecruiser_path_info;
+
+    // --- Safety checks ---
+    const size_t numPoints = pathInfo.origin_point_list.size();
+    if (numPoints == 0 ||
+        pathInfo.previous_point_list.size() != numPoints ||
+        pathInfo.next_point_factor_list.size() != numPoints) {
+        std::cerr << "Invalid battlecruiser path configuration! Cannot create Bezier Path";
+        return;
+    }
+
+    // --- Reset state ---
+    timeBezierPath = 0.0f;
+    currentCurvePath = 0;
+    bezier_curve_list.clear();
+
+    // --- First curve ---
+    glm::vec3 firstControl = position + glm::normalize(velocity) * pathInfo.start_point_factor;
+    bezier_curve_list.push_back({
+        position,
+        firstControl,
+        pathInfo.previous_point_list[0],
+        pathInfo.origin_point_list[0]
+    });
+
+    // --- Middle curves ---
+    for (size_t i = 1; i < numPoints; ++i) {
+        const glm::vec3 &prevOrigin = pathInfo.origin_point_list[i - 1];
+        const glm::vec3 &prevPrev = pathInfo.previous_point_list[i - 1];
+        float nextFactor = pathInfo.next_point_factor_list[i - 1];
+
+        glm::vec3 nextOriginPointMiddle = prevOrigin + glm::normalize(prevOrigin - prevPrev) * nextFactor;
+
+        bezier_curve_list.push_back({
+            prevOrigin,
+            nextOriginPointMiddle,
+            pathInfo.previous_point_list[i],
+            pathInfo.origin_point_list[i]
+        });
+    }
+
+    // --- Last curve ---
+    const size_t last = numPoints - 1;
+    glm::vec3 lastOrigin = pathInfo.origin_point_list[last];
+    glm::vec3 lastPrev = pathInfo.previous_point_list[last];
+    float lastFactor = pathInfo.next_point_factor_list[last];
+
+    glm::vec3 nextOriginPointLast = lastOrigin + glm::normalize(lastOrigin - lastPrev) * lastFactor;
+
+    bezier_curve_list.push_back({
+        lastOrigin,
+        nextOriginPointLast,
+        position - glm::normalize(velocity) * pathInfo.start_point_factor,
+        position
+    });
+}
+
+
+void Battlecruiser::updatePosition(float deltaTime) {
+    if (isFollowingPath) {
+        if (currentCurvePath == -1) {
+            initializeBezierPathMovement();
+        }
+
+        updateVelocityPositionPathMovement(deltaTime);
+    } else {
+        updatePosition(deltaTime);
+    }
+}
+
+glm::vec3 Battlecruiser::bezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
+    return std::pow(1 - t, 3.0f) * p0 + 3 * std::pow(1 - t, 2.0f) * t * p1 + 3 * (1 - t) * std::pow(t, 2.0f) * p2 +
+           std::pow(t, 3.0f) * p3;
+}
+
+
+glm::vec3 Battlecruiser::derivativeBezier(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3, float t) {
+    return 3 * std::pow(1 - t, 2.0f) * (p1 - p0) + 6 * (1 - t) * t * (p2 - p1) + 3 * std::pow(t, 2.0f) * (p3 - p2);
+}
+
+
+void Battlecruiser::updateVelocityPositionPathMovement(float deltaTime) {
+    if (timeBezierPath == 1.0f) {
+        timeBezierPath = 0.0f;
+        currentCurvePath += 1;
+
+        if (currentCurvePath == bezier_curve_list.size())
+            currentCurvePath = 0;
+    }
+
+    float speed = glm::length(velocity);
+    glm::vec3 derivativeBezier = Battlecruiser::derivativeBezier(bezier_curve_list[currentCurvePath].p0,
+                                                                 bezier_curve_list[currentCurvePath].p1,
+                                                                 bezier_curve_list[currentCurvePath].p2,
+                                                                 bezier_curve_list[currentCurvePath].p3,
+                                                                 timeBezierPath);
+    float lengthCurveBezier = glm::length(derivativeBezier);
+
+    timeBezierPath += (speed / lengthCurveBezier) * deltaTime;
+    timeBezierPath = glm::clamp(timeBezierPath, 0.0f, 1.0f);
+
+    std::cout << timeBezierPath << std::endl;
+
+    position = bezier(bezier_curve_list[currentCurvePath].p0, bezier_curve_list[currentCurvePath].p1,
+                      bezier_curve_list[currentCurvePath].p2, bezier_curve_list[currentCurvePath].p3, timeBezierPath);
+    velocity = glm::normalize(derivativeBezier) * speed;
+}
+
+
+void Battlecruiser::updateVelocityPositionFreeMovement(float deltaTime) {
     static float currentBankAngle = 0.0f;
 
     float initialSpeed = glm::length(velocity);
@@ -145,10 +264,12 @@ void Battlecruiser::updateVelocityPosition(float deltaTime) {
     glm::vec3 directionVector = getDirectionVector();
 
     if (window.isKeyPressed(GLFW_KEY_LEFT)) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX,
+                                                glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
     if (window.isKeyPressed(GLFW_KEY_RIGHT)) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX,
+                                                glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
 
     float maxPitch = glm::radians(80.0f);
@@ -156,10 +277,12 @@ void Battlecruiser::updateVelocityPosition(float deltaTime) {
     glm::vec3 right = glm::normalize(glm::cross(directionVector, getUpVector()));
 
     if (window.isKeyPressed(GLFW_KEY_UP) && pitchAngle < maxPitch) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) *
+                          directionVector;
     }
     if (window.isKeyPressed(GLFW_KEY_DOWN) && pitchAngle > -maxPitch) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) *
+                          directionVector;
     }
 
     if (window.isKeyPressed(GLFW_KEY_KP_ADD)) {
@@ -230,8 +353,7 @@ glm::vec3 Battlecruiser::getUpVector() {
 
 
 Battlecruiser::~Battlecruiser() {
-    for (const MeshGL& m : meshGLs)
-    {
+    for (const MeshGL &m: meshGLs) {
         glDeleteBuffers(1, &m.vbo);
         glDeleteBuffers(1, &m.ibo);
         glDeleteVertexArrays(1, &m.vao);
