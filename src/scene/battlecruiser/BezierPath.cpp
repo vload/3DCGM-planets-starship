@@ -255,22 +255,21 @@ void BezierPath::updateVelocityPositionPathMovement(float deltaTime) {
     float speed = glm::length(velocity);
     timeBezierPath += speed * deltaTime;
 
-    if (timeBezierPath >= table.totalLength) {
-        // Move to next curve
-        timeBezierPath = 0.0f;
-        currentCurvePath = (currentCurvePath + 1) % bezier_curve_list.size();
-
-        curve = bezier_curve_list[currentCurvePath];
-        table = bezier_arc_length_tables_list[currentCurvePath];
+    if (timeBezierPath > table.totalLength) {
+        timeBezierPath = table.totalLength;
     }
 
     float t = findTFromArcLength(table, timeBezierPath);
     glm::vec3 newPosition = bezier(curve.p0, curve.p1, curve.p2, curve.p3, t);
-
     position = newPosition;
 
     glm::vec3 tangent = derivativeBezier(curve.p0, curve.p1, curve.p2, curve.p3, t);
     velocity = glm::normalize(tangent) * speed;
+
+    if (timeBezierPath >= table.totalLength) {
+        timeBezierPath = 0.0f;
+        currentCurvePath = (currentCurvePath + 1) % bezier_curve_list.size();
+    }
 }
 
 glm::vec3 BezierPath::getCurrentPosition() const {
