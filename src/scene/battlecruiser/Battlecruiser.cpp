@@ -193,10 +193,10 @@ void Battlecruiser::updateVelocityPositionFreeMovement(float deltaTime) {
                           directionVector;
     }
 
-    if (window.isKeyPressed(GLFW_KEY_KP_ADD)) {
+    if (window.isKeyPressed(GLFW_KEY_PAGE_UP)) {
         initialSpeed += 0.1f;
     }
-    if (window.isKeyPressed(GLFW_KEY_KP_SUBTRACT)) {
+    if (window.isKeyPressed(GLFW_KEY_PAGE_DOWN)) {
         initialSpeed -= 0.1f;
     }
 
