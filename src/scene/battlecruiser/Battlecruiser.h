@@ -2,9 +2,12 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <vector>
+#include <core/config.h>
 #include <framework/shader.h>
 #include <framework/mesh.h>
 #include <framework/window.h>
+
+#include "BezierPath.h"
 
 struct LightParticle {
     glm::vec3 pos;
@@ -16,26 +19,39 @@ struct LightParticle {
 };
 
 class Battlecruiser {
-    Window& window;
+    Window &window;
+    Config &config;
+
 public:
-    Battlecruiser(Window& window);
+    Battlecruiser(Window &window, Config &config);
+
     ~Battlecruiser();
 
-    void draw(const glm::mat4& view,
-        const glm::mat4& projection,
-        const glm::vec3& lightPos,
-        const glm::vec3& cameraPos,
-        unsigned int cubemapTexture);
+    void draw(const glm::mat4 &view,
+              const glm::mat4 &projection,
+              const glm::vec3 &lightPos,
+              const glm::vec3 &cameraPos,
+              unsigned int cubemapTexture);
+    void drawBezierPath(const glm::mat4 &view,
+              const glm::mat4 &projection);
 
-    void updateVelocityPosition(float deltaTime);
+    void updatePosition(float deltaTime);
 
     std::vector<glm::vec3> getRelativePositionThrusters();
+
     glm::mat4 getModelMatrix();
 
     glm::vec3 getDirectionVector();
+
     glm::vec3 getUpVector();
 
+    virtual void imGuiControl();
+
 private:
+    BezierPath bezierPath;
+
+    bool isFollowingPath = false;
+
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 1.0f);
 
@@ -52,6 +68,10 @@ private:
 
     Shader mainShader;
     Shader reflectiveShader;
+    
 
     std::vector<MeshGL> meshGLs;
+
+    void updateVelocityPositionFreeMovement(float deltaTime);
+    void updateVelocityPositionPathMovement(float deltaTime);
 };

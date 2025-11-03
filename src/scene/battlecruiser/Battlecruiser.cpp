@@ -1,4 +1,5 @@
 #include "Battlecruiser.h"
+#include "BezierPath.h"
 #include <glm/gtc/type_ptr.hpp>
 #include <cstdlib>
 #include <framework/shader.h>
@@ -6,12 +7,13 @@
 #include <random>
 #include <iostream>
 #include <glm/gtx/quaternion.hpp>
+#include <imgui/imgui.h>
 
-Battlecruiser::Battlecruiser(Window& window): window(window) {
+
+Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
     const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
-    
-    for (const auto& mesh : meshes)
-    {
+
+    for (const auto &mesh: meshes) {
         MeshGL m;
 
         // Create VAO
@@ -26,17 +28,18 @@ Battlecruiser::Battlecruiser(Window& window): window(window) {
         // Create and upload index buffer
         glGenBuffers(1, &m.ibo);
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, m.ibo);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.triangles.size() * sizeof(glm::uvec3), mesh.triangles.data(), GL_STATIC_DRAW);
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, mesh.triangles.size() * sizeof(glm::uvec3), mesh.triangles.data(),
+                     GL_STATIC_DRAW);
 
         // Vertex attributes
         glEnableVertexAttribArray(0); // position
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, position));
 
         glEnableVertexAttribArray(1); // normal
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, normal));
 
         glEnableVertexAttribArray(2); //tex Coordinates
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, texCoord));
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, texCoord));
 
         glBindVertexArray(0);
 
@@ -45,33 +48,32 @@ Battlecruiser::Battlecruiser(Window& window): window(window) {
 
         std::cout << "Mesh detected: " << m.materialName << std::endl;
         std::cout << "Mesh vertices: " << mesh.vertices.size()
-            << " triangles: " << mesh.triangles.size() << std::endl;
+                << " triangles: " << mesh.triangles.size() << std::endl;
 
         meshGLs.push_back(m);
     }
 
     mainShader =
-        ShaderBuilder()
+            ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_frag.glsl")
+                      "shaders/battlecruiser/shader_frag.glsl")
             .build();
     reflectiveShader =
-        ShaderBuilder()
+            ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
-                        "shaders/battlecruiser/glass_shader_frag.glsl")
+                      "shaders/battlecruiser/glass_shader_frag.glsl")
             .build();
 }
 
-void Battlecruiser::draw(const glm::mat4& view,
-    const glm::mat4& projection,
-    const glm::vec3& lightPos,
-    const glm::vec3& cameraPos,
-    unsigned int cubemapTexture)
-{
+void Battlecruiser::draw(const glm::mat4 &view,
+                         const glm::mat4 &projection,
+                         const glm::vec3 &lightPos,
+                         const glm::vec3 &cameraPos,
+                         unsigned int cubemapTexture) {
     // --- Setup once per frame ---
     LightParticle thruster = {
         glm::vec3(0.0f, 4.0f, -50.0f),
@@ -83,7 +85,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     };
 
     // Disable face culling to render inside the windows
-    glDisable(GL_CULL_FACE); 
+    glDisable(GL_CULL_FACE);
 
     // --- Pass 1: opaque meshes ---
     mainShader.bind();
@@ -102,7 +104,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
 
     // Draw all opaque meshes that use the main shader
-    for (const auto& m : meshGLs) {
+    for (const auto &m: meshGLs) {
         if (m.materialName == "Steel_-_Satin") {
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
@@ -124,7 +126,7 @@ void Battlecruiser::draw(const glm::mat4& view,
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    for (const auto& m : meshGLs) {
+    for (const auto &m: meshGLs) {
         if (m.materialName == "Window-Cabin-Material") {
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
@@ -132,7 +134,32 @@ void Battlecruiser::draw(const glm::mat4& view,
     }
 }
 
-void Battlecruiser::updateVelocityPosition(float deltaTime) {
+void Battlecruiser::drawBezierPath(const glm::mat4 &view,
+              const glm::mat4 &projection) {
+    if (isFollowingPath) {
+        glm::vec2 viewport = window.getFrameBufferSize();
+
+        bezierPath.draw(view, projection, modelMatrix, viewport);
+    }
+}
+
+void Battlecruiser::updatePosition(float deltaTime) {
+    if (isFollowingPath) {
+        updateVelocityPositionPathMovement(deltaTime);
+    } else {
+        updateVelocityPositionFreeMovement(deltaTime);
+    }
+}
+
+void Battlecruiser::updateVelocityPositionPathMovement(float deltaTime) {
+    bezierPath.updateVelocityPositionPathMovement(deltaTime);
+
+    position = bezierPath.getCurrentPosition();
+    velocity = bezierPath.getCurrentVelocity();
+}
+
+
+void Battlecruiser::updateVelocityPositionFreeMovement(float deltaTime) {
     static float currentBankAngle = 0.0f;
 
     float initialSpeed = glm::length(velocity);
@@ -145,10 +172,12 @@ void Battlecruiser::updateVelocityPosition(float deltaTime) {
     glm::vec3 directionVector = getDirectionVector();
 
     if (window.isKeyPressed(GLFW_KEY_LEFT)) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), deltaTime * sensitivityRotationX,
+                                                glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
     if (window.isKeyPressed(GLFW_KEY_RIGHT)) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX, glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationX,
+                                                glm::vec3(0.0f, 1.0f, 0.0f))) * directionVector;
     }
 
     float maxPitch = glm::radians(80.0f);
@@ -156,16 +185,18 @@ void Battlecruiser::updateVelocityPosition(float deltaTime) {
     glm::vec3 right = glm::normalize(glm::cross(directionVector, getUpVector()));
 
     if (window.isKeyPressed(GLFW_KEY_UP) && pitchAngle < maxPitch) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), +deltaTime * sensitivityRotationY, right)) *
+                          directionVector;
     }
     if (window.isKeyPressed(GLFW_KEY_DOWN) && pitchAngle > -maxPitch) {
-        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) * directionVector;
+        directionVector = glm::mat3(glm::rotate(glm::mat4(1.0f), -deltaTime * sensitivityRotationY, right)) *
+                          directionVector;
     }
 
-    if (window.isKeyPressed(GLFW_KEY_KP_ADD)) {
+    if (window.isKeyPressed(GLFW_KEY_PAGE_UP)) {
         initialSpeed += 0.1f;
     }
-    if (window.isKeyPressed(GLFW_KEY_KP_SUBTRACT)) {
+    if (window.isKeyPressed(GLFW_KEY_PAGE_DOWN)) {
         initialSpeed -= 0.1f;
     }
 
@@ -228,12 +259,20 @@ glm::vec3 Battlecruiser::getUpVector() {
     return glm::normalize(upVector);
 }
 
+void Battlecruiser::imGuiControl() {
+    ImGui::Separator();
+    ImGui::Text("Battlecruiser Movement");
+    if (ImGui::Checkbox("Follow Bezier Path", &isFollowingPath)) {
+        bezierPath.initializeBezierPathMovement(config.battlecruiser_path_info, position, velocity);
+    }
+}
+
 
 Battlecruiser::~Battlecruiser() {
-    for (const MeshGL& m : meshGLs)
-    {
+    for (const MeshGL &m: meshGLs) {
         glDeleteBuffers(1, &m.vbo);
         glDeleteBuffers(1, &m.ibo);
         glDeleteVertexArrays(1, &m.vao);
     }
 }
+

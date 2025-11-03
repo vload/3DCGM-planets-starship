@@ -33,6 +33,7 @@ DISABLE_WARNINGS_POP()
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
 #include "scene/camera/BattlecruiserCamera.h"
+#include <scene/battlecruiser/BezierPath.h>
 
 int WIDTH_WINDOW = 1280;
 int HEIGHT_WINDOW = 720;
@@ -101,6 +102,10 @@ int main() {
         WIDTH_WINDOW = newSize.x;
         HEIGHT_WINDOW = newSize.y;
     });
+    glm::ivec2 frameSizeWindow = window.getFrameBufferSize();
+
+    WIDTH_WINDOW = frameSizeWindow.x;
+    HEIGHT_WINDOW = frameSizeWindow.y;
 
     /// ---- Camera setup
     FreeCamera freecam(window, config);
@@ -129,7 +134,7 @@ int main() {
     Skybox skybox;
 
     /// -- Battlecruiser
-    Battlecruiser battlecruiser(window);
+    Battlecruiser battlecruiser(window, config);
 
     /// -- Camera Battlecruiser
     BattlecruiserCamera battlecruiserCamera(window, config, battlecruiser);
@@ -168,7 +173,7 @@ int main() {
         /// -- Update cameras
         freecam.update_input();
         // -- Update battlecruiser
-        battlecruiser.updateVelocityPosition(static_cast<float>(delta_time));
+        battlecruiser.updatePosition(static_cast<float>(delta_time));
         // -- Update battlecruiser camera
         battlecruiserCamera.update_input();
         // -- Update battlecruiser particles
@@ -195,7 +200,8 @@ int main() {
             /// -- ImGui Body selection and controls
             planet_system.imgui();
 
-            ImGui::Separator();
+            /// -- ImGui Battlecruiser controls
+            battlecruiser.imGuiControl();
         }
 
         ImGui::End();
@@ -226,7 +232,11 @@ int main() {
                 glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
                 skybox.getCubemapTexture());
 
-            /// -- Pass #6: Render battlecruiser Particles
+            /// -- Pass #6: Render battlecruiser Bezier Path
+            reset_opengl_state();
+            battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
+
+            /// -- Pass #7: Render battlecruiser Particles
             reset_opengl_state();
             particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
         }

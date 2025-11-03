@@ -12,6 +12,15 @@ DISABLE_WARNINGS_POP()
 
 class Config {
 public:
+    struct BattlecruiserPathInfo {
+        float start_point_factor;
+        float end_point_factor;
+
+        std::vector<glm::vec3> origin_point_list;
+        std::vector<glm::vec3> previous_point_list;
+        std::vector<float> next_point_factor_list;
+    };
+
     struct PlanetInfo {
         std::string type;
         float radius;
@@ -41,6 +50,8 @@ public:
     bool enable_eclipse_shadows;
     bool enable_shadow_mapping_planets;
     int shadow_map_size;
+
+    BattlecruiserPathInfo battlecruiser_path_info;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -84,6 +95,32 @@ public:
                 info.orbit_period = (*planet_arr)[7].value_or(0.0f);
                 planets.push_back(info);
             });
+        }
+
+        // Get the object for battlecruiser_path info
+        if (toml::table* bc_table = data["battlecruiser"]["path"].as_table()) {
+            battlecruiser_path_info.start_point_factor =
+                bc_table->get("start_point_factor")->value_or(1.0f);
+            battlecruiser_path_info.end_point_factor =
+                bc_table->get("end_point_factor")->value_or(1.0f);
+
+            if (toml::array* path_list = bc_table->get("path_points_list")->as_array()) {
+                path_list->for_each([&](auto&& elem) {
+                    toml::array* triple = elem.as_array();
+                    if (!triple || triple->size() != 3) {
+                        std::cerr << "Error: Expected [vec3, vec3, float] triple in path_points_list\n";
+                        return;
+                    }
+
+                    glm::vec3 previous = tomlArrayToVec3((*triple)[0].as_array()).value_or(glm::vec3(0.0f));
+                    glm::vec3 origin  = tomlArrayToVec3((*triple)[1].as_array()).value_or(glm::vec3(0.0f));
+                    float next_factor    = (*triple)[2].value_or(0.0f);
+
+                    battlecruiser_path_info.previous_point_list.push_back(previous);
+                    battlecruiser_path_info.origin_point_list.push_back(origin);
+                    battlecruiser_path_info.next_point_factor_list.push_back(next_factor);
+                });
+            }
         }
 
         enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
