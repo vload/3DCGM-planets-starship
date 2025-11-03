@@ -10,7 +10,7 @@ elseif(PROJECT_IS_TOP_LEVEL)
 endif()
 
 file(GLOB_RECURSE SRC_FILES "${CMAKE_CURRENT_LIST_DIR}/src/*.cpp")
-add_executable(Master_TechDemo ${SRC_FILES} "src/scene/battlecruiser/BezierPath.h" "src/scene/battlecruiser/BezierPath.cpp")
+add_executable(Master_TechDemo ${SRC_FILES})
 
 target_include_directories(Master_TechDemo PRIVATE
 		${CMAKE_CURRENT_LIST_DIR}/src
