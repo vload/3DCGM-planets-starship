@@ -111,7 +111,7 @@ class PlanetSystem {
             bodies.push_back(new Earth(
                 config, glm::vec3(0.0f), 1.0f, ico_mesh));
             bodies.back()->set_orbit(
-                glm::vec3(1.0f, 0.0f, 0.0f), 5.0f, 10.0f,
+                glm::vec3(1.0f, 0.0f, 0.0f), 7.0f, 7.0f,
                 glm::vec3(0.0f, 1.0f, 0.0f), 10.0f,
                 bodies[selected_body]);
             bodies.back()->setup();
@@ -131,7 +131,7 @@ class PlanetSystem {
             bodies.push_back(new Body(
                 config, glm::vec3(0.0f), 1.0f, ico_mesh));
             bodies.back()->set_orbit(
-                glm::vec3(1.0f, 0.0f, 0.0f), 5.0f, 10.0f,
+                glm::vec3(1.0f, 0.0f, 0.0f), 7.0f, 7.0f,
                 glm::vec3(0.0f, 1.0f, 0.0f), 10.0f,
                 bodies[selected_body]);
             bodies.back()->setup();
