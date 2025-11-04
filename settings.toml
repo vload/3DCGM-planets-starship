@@ -16,8 +16,7 @@ look_speed = 0.005                 # this is basically sensitivity
 
 [planets]
 ico_mesh_resolution = 5
-# TODO: add star params
-# TODO: add earth params
+fallback_color = [1.0, 0.3, 0.3]
 planets_info = [
     # example entries:
     # [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
@@ -54,6 +53,33 @@ planets_info = [
     # ["body", 0.4, 6, [0.0, 1.0, 0.0], 4.0, 5.0, [1.0, 0.0, 0.0], 3.0],
     # ["body", 0.3, 6, [1.0, 0.0, 1.0], 5.0, 6.0, [0.0, 1.0, 1.0], 4.0],
 ]
+    # TODO: add star params
+    # TODO: add earth params
+    [planets.earth]
+    # Earth shape parameters
+    shape_noise_octaves = 5
+    shape_noise_lacunarity = 2.0
+    shape_noise_persistence = 0.45
+    shape_noise_base_frequency = 1.2
+    ocean_level = 0.0
+    shape_noise_pseudo_seed = 100.0
+    shape_noise_scale = 0.25
+    surface_ka = 0.1
+    surface_kd = 0.9
+
+    # Earth water parameters
+    water_noise_octaves = 5
+    water_noise_lacunarity = 2.0
+    water_noise_persistence = 0.45
+    ocean_scale = 10.0
+    ocean_speed = 0.3
+    waterKa = 0.1
+    waterKd = 0.9
+    waterKs = 0.9
+    waterShininess = 128.0
+    ocean_normal_gradient_multiplier = 0.01
+
+
 
 [skybox]
 # TODO: skybox paths could go here

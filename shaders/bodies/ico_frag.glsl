@@ -15,7 +15,7 @@ layout(location = 0) out vec4 fragColor;
 
 
 vec3 lightPos = vec3(10.0, 0.0, 0.0);
-uniform vec3 color = vec3(0.3, 0.3, 1.0);
+uniform vec3 body_color = vec3(0.3, 0.3, 1.0);
 uniform float time;
 uniform vec3 planet_center;
 uniform float radius;
@@ -95,5 +95,5 @@ void main()
 
     float ambient = 0.1;
 
-    fragColor = vec4(color * (diffuse * eclipseLightFactor + ambient), 1.0);
+    fragColor = vec4(body_color * (diffuse * eclipseLightFactor + ambient), 1.0);
 }

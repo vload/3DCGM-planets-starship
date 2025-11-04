@@ -21,9 +21,9 @@ class Star : public Body {
         shader = starBuilder.build();
     }
 
-    void update(float deltaTime) {
-        Body::update(deltaTime);
-    }
+    // void update(float deltaTime, glm::vec3 p_light_position = glm::vec3(0.0f)) {
+    //     Body::update(deltaTime, p_light_position);
+    // }
 
     void imGuiControl() {
         Body::imGuiControl();

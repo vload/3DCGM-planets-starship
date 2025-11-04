@@ -1,11 +1,34 @@
 #pragma once
 #include "scene/bodies/Body.h"
+#include <cstdio>
 
 class Earth : public Body {
    public:
     // TODO: load earth params from config instead of insane imgui
     Earth(Config& config, const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
-        : Body(config, pos, r, icosahedron_mesh) {}
+        : Body(config, pos, r, icosahedron_mesh) {
+        // Initialize earth parameters from config if available
+        shape_noise_octaves = config.earth_params.shape_noise_octaves;
+        shape_noise_lacunarity = config.earth_params.shape_noise_lacunarity;
+        shape_noise_persistence = config.earth_params.shape_noise_persistence;
+        shape_noise_base_frequency = config.earth_params.shape_noise_base_frequency;
+        ocean_level = config.earth_params.ocean_level;
+        shape_noise_pseudo_seed = config.earth_params.shape_noise_pseudo_seed;
+        shape_noise_scale = config.earth_params.shape_noise_scale;
+        surface_ka = config.earth_params.surface_ka;
+        surface_kd = config.earth_params.surface_kd;
+
+        water_noise_octaves = config.earth_params.water_noise_octaves;
+        water_noise_lacunarity = config.earth_params.water_noise_lacunarity;
+        water_noise_persistence = config.earth_params.water_noise_persistence;
+        ocean_scale = config.earth_params.ocean_scale;
+        ocean_speed = config.earth_params.ocean_speed;
+        waterKa = config.earth_params.waterKa;
+        waterKd = config.earth_params.waterKd;
+        waterKs = config.earth_params.waterKs;
+        waterShininess = config.earth_params.waterShininess;
+        ocean_normal_gradient_multiplier = config.earth_params.ocean_normal_gradient_multiplier;
+    }
 
     void setup() {
         ShaderBuilder earthBuilder;
@@ -18,35 +41,42 @@ class Earth : public Body {
         earthBuilder.addStage(GL_FRAGMENT_SHADER,
                             RESOURCE_ROOT "shaders/bodies/earth_frag.glsl");
         shader = earthBuilder.build();
+
+        // set pseudo seed. not using c++ random for simplicity
+        // not setting srand because we don't care if these are different each run
+        // Only randomize if the value wasn't provided by config (default 100.0f)
+        if (shape_noise_pseudo_seed == 100.0f) {
+            shape_noise_pseudo_seed = static_cast<float>(rand() % 10000) / 1000.0f;
+        }
     }
 
-    void update(float deltaTime) {
-        Body::update(deltaTime);
-    }
+    // void update(float deltaTime, glm::vec3 p_light_position = glm::vec3(0.0f)) {
+    //     Body::update(deltaTime, p_light_position);
+    // }
 
     bool needs_shadow_map() { return true; }
 
     void imGuiControl() {
         Body::imGuiControl();
         ImGui::SliderFloat("Ocean Level", &ocean_level, -1.0f, 1.0f, "%.2f");
-        ImGui::SliderInt("Shape Noise Octaves", &shape_noise_octaves, 1, 10);
-        ImGui::SliderFloat("Shape Noise Lacunarity", &shape_noise_lacunarity, 1.0f, 4.0f, "%.2f");
-        ImGui::SliderFloat("Shape Noise Persistence", &shape_noise_persistence, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Shape Noise Base Frequency", &shape_noise_base_frequency, 1.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Shape Noise Pseudo Seed", &shape_noise_pseudo_seed, 0.0f, 10000.0f, "%.2f");
-        ImGui::SliderFloat("Shape Noise Scale", &shape_noise_scale, 0.0f, 1.0f, "%.2f");
-        ImGui::Separator();
-        ImGui::SliderInt("Water Noise Octaves", &water_noise_octaves, 1, 10);
-        ImGui::SliderFloat("Water Noise Lacunarity", &water_noise_lacunarity, 1.0f, 4.0f, "%.2f");
-        ImGui::SliderFloat("Water Noise Persistence", &water_noise_persistence, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Ocean Scale", &ocean_scale, 1.0f, 100.0f, "%.2f");
-        ImGui::SliderFloat("Ocean Speed", &ocean_speed, 0.0f, 5.0f, "%.2f");
-        ImGui::Separator();
-        ImGui::SliderFloat("Water Ka", &waterKa, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Water Kd", &waterKd, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Water Ks", &waterKs, 0.0f, 1.0f, "%.2f");
-        ImGui::SliderFloat("Water Shininess", &waterShininess, 1.0f, 256.0f, "%.2f");
-        ImGui::SliderFloat("Ocean Normal Gradient Multiplier", &ocean_normal_gradient_multiplier, 0.0f, 0.1f, "%.3f");
+        // ImGui::SliderInt("Shape Noise Octaves", &shape_noise_octaves, 1, 10);
+        // ImGui::SliderFloat("Shape Noise Lacunarity", &shape_noise_lacunarity, 1.0f, 4.0f, "%.2f");
+        // ImGui::SliderFloat("Shape Noise Persistence", &shape_noise_persistence, 0.0f, 1.0f, "%.2f");
+        // ImGui::SliderFloat("Shape Noise Base Frequency", &shape_noise_base_frequency, 1.0f, 10.0f, "%.2f");
+        // ImGui::SliderFloat("Shape Noise Pseudo Seed", &shape_noise_pseudo_seed, 0.0f, 100.0f, "%.2f");
+        // ImGui::SliderFloat("Shape Noise Scale", &shape_noise_scale, 0.0f, 1.0f, "%.2f");
+        // ImGui::Separator();
+        // ImGui::SliderInt("Water Noise Octaves", &water_noise_octaves, 1, 10);
+        // ImGui::SliderFloat("Water Noise Lacunarity", &water_noise_lacunarity, 1.0f, 4.0f, "%.2f");
+        // ImGui::SliderFloat("Water Noise Persistence", &water_noise_persistence, 0.0f, 1.0f, "%.2f");
+        // ImGui::SliderFloat("Ocean Scale", &ocean_scale, 1.0f, 100.0f, "%.2f");
+        // ImGui::SliderFloat("Ocean Speed", &ocean_speed, 0.0f, 5.0f, "%.2f");
+        // ImGui::Separator();
+        // ImGui::SliderFloat("Water Ka", &waterKa, 0.0f, 1.0f, "%.2f");
+        // ImGui::SliderFloat("Water Kd", &waterKd, 0.0f, 1.0f, "%.2f");
+        // ImGui::SliderFloat("Water Ks", &waterKs, 0.0f, 1.0f, "%.2f");
+        // ImGui::SliderFloat("Water Shininess", &waterShininess, 1.0f, 256.0f, "%.2f");
+        // ImGui::SliderFloat("Ocean Normal Gradient Multiplier", &ocean_normal_gradient_multiplier, 0.0f, 0.1f, "%.3f");
     }
 
     virtual void set_uniforms() {  // this assumes the shader is already bound
@@ -79,6 +109,10 @@ class Earth : public Body {
         glUniform1f(shader.getUniformLocation("waterShininess"), waterShininess);
         glUniform1f(shader.getUniformLocation("ocean_normal_gradient_multiplier"),
                     ocean_normal_gradient_multiplier);
+        glUniform1f(shader.getUniformLocation("surface_ka"),
+                    surface_ka);
+        glUniform1f(shader.getUniformLocation("surface_kd"),
+                    surface_kd);
     }
 
    protected:
@@ -88,9 +122,10 @@ class Earth : public Body {
     float shape_noise_persistence = 0.45f;
     float shape_noise_base_frequency = 1.2f;
     float ocean_level = 0.0f;
-    // TODO: use a different seed per planet?
     float shape_noise_pseudo_seed = 100.0f;
     float shape_noise_scale = 0.25f;
+    float surface_ka = 0.1f;
+    float surface_kd = 0.9f;
     // Earth water parameters
     int water_noise_octaves = 5;
     float water_noise_lacunarity = 2.0f;

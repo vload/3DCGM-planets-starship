@@ -30,7 +30,9 @@ class Body {
           position(pos),
           radius(r),
           icosahedronMesh(icosahedron_mesh),
-          shadow_map(config) {}
+          shadow_map(config) {
+        color = config.body_fallback_color;
+    }
 
     glm::vec3 getPosition() const { return position; }
     float getRadius() const { return radius; }
@@ -52,8 +54,8 @@ class Body {
         }
     }
 
-    virtual void update(float deltaTime,
-                        glm::vec3 p_light_position = glm::vec3(0.0f)) {
+    /*virtual*/ void update(float deltaTime,
+                            glm::vec3 p_light_position = glm::vec3(0.0f)) {
         // Update light matrices for shadow mapping
         light_position = p_light_position;
         light_view_matrix =
@@ -125,11 +127,14 @@ class Body {
                       param_large_radius, param_orbit_normal,
                       param_orbit_period, parent);
         }
+        ImGui::ColorEdit3("Fallback Color", glm::value_ptr(color));
     }
 
     virtual void set_uniforms() {  // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
         glUniform1f(shader.getUniformLocation("test"), test);
+        glUniform3fv(shader.getUniformLocation("body_color"), 1,
+                     glm::value_ptr(color));
     }
 
     virtual bool needs_shadow_map() { return false; }
@@ -187,9 +192,22 @@ class Body {
 
     void set_orbit(const glm::vec3& direction, float small_r, float large_r,
                    const glm::vec3& normal, float period, Body* parent_body) {
+        // Sanitize inputs
         orbitNormal = glm::normalize(normal);
+        if (glm::length(normal) < 1e-6f) {
+            orbitNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+            std::cout
+                << "Warning: Orbit normal was zero vector, reset to (0,1,0)."
+                << std::endl;
+        }
         orbit_direction = glm::normalize(
             direction - glm::dot(direction, orbitNormal) * orbitNormal);
+        if (glm::length(orbit_direction) < 1e-6f) {
+            orbit_direction = glm::vec3(1.0f, 0.0f, 0.0f);
+            std::cout << "Warning: Orbit direction was parallel to orbit "
+                         "normal, reset to (1,0,0)."
+                      << std::endl;
+        }
         smallRadius = small_r;
         largeRadius = large_r;
         orbitPeriod = period;
@@ -233,4 +251,7 @@ class Body {
     glm::mat4 light_view_matrix;
     glm::vec3 light_position;
     glm::mat4 light_projection_matrix;
+
+    // default body params
+    glm::vec3 color{0.3f, 0.3f, 1.0f};
 };

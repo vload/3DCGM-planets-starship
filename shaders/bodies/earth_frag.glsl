@@ -152,7 +152,7 @@ float get_height(vec3 sphere_pos) {
 
 vec3 get_surface_normal(vec3 pos)
 {
-    float eps = 0.001; // small step for finite differences
+    float eps = 0.0001; // small step for finite differences
     float h = get_height(pos);
 
     float hx = get_height(pos + vec3(eps, 0.0, 0.0));
@@ -338,14 +338,13 @@ uniform float ocean_normal_gradient_multiplier = 0.01;
 
 // Computes a procedural ocean normal for a spherical planet
 vec3 getOceanNormal(vec3 pos, float time) {
-    float eps = 0.001; // small step for finite differences
-    float delta = 0.001;
-    
+    float eps = 0.0001; // small step for finite differences
+
     float h = fractalNoise(vec4(pos * ocean_scale, time * ocean_speed));
 
-    float hx = fractalNoise(vec4((pos + vec3(1.0, 0.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
-    float hy = fractalNoise(vec4((pos + vec3(0.0, 1.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
-    float hz = fractalNoise(vec4((pos + vec3(0.0, 0.0, 1.0) * delta) * ocean_scale, time * ocean_speed));
+    float hx = fractalNoise(vec4((pos + vec3(1.0, 0.0, 0.0) * eps) * ocean_scale, time * ocean_speed));
+    float hy = fractalNoise(vec4((pos + vec3(0.0, 1.0, 0.0) * eps) * ocean_scale, time * ocean_speed));
+    float hz = fractalNoise(vec4((pos + vec3(0.0, 0.0, 1.0) * eps) * ocean_scale, time * ocean_speed));
 
     // Compute gradient in tangent plane
     vec3 grad = vec3(hx - h, hy - h, hz - h) / eps;
@@ -474,6 +473,10 @@ float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
     return shadow; // 0.0 = fully lit, 1.0 = fully shadowed
 }
 
+
+uniform float surface_ka = 0.1; // surface ambient
+uniform float surface_kd = 0.9; // surface diffuse
+
 void main()
 {
     if(only_depth != 1) {
@@ -542,15 +545,13 @@ void main()
         }
 
         // TODO: temp phong shading, replace with PBR later
-        float ka = 0.1; // ambient
-        float kd = 0.9; // diffuse
 
         vec3 normal = get_surface_normal(spherePosition);
         vec3 lightDir = normalize(lightPosition - fragPosition);
 
         // Phong reflection model
-        vec3 ambient = ka * col;
-        vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * col;
+        vec3 ambient = surface_ka * col;
+        vec3 diffuse = surface_kd * max(dot(normal, lightDir), 0.0) * col;
         
         shadowMultiplier = 1.0 - shadow_calculation(fragPosition, normal, lightDir);
         fragColor = vec4(ambient + diffuse * eclipseLightFactor * shadowMultiplier, 1.0);
