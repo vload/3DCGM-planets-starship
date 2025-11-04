@@ -52,7 +52,7 @@ class Body {
         }
     }
 
-    virtual void update(float deltaTime,
+    /*virtual*/ void update(float deltaTime,
                         glm::vec3 p_light_position = glm::vec3(0.0f)) {
         // Update light matrices for shadow mapping
         light_position = p_light_position;
@@ -187,9 +187,22 @@ class Body {
 
     void set_orbit(const glm::vec3& direction, float small_r, float large_r,
                    const glm::vec3& normal, float period, Body* parent_body) {
+        // Sanitize inputs
         orbitNormal = glm::normalize(normal);
+        if (glm::length(normal) < 1e-6f) {
+            orbitNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+            std::cout
+                << "Warning: Orbit normal was zero vector, reset to (0,1,0)."
+                << std::endl;
+        }
         orbit_direction = glm::normalize(
             direction - glm::dot(direction, orbitNormal) * orbitNormal);
+        if (glm::length(orbit_direction) < 1e-6f) {
+            orbit_direction = glm::vec3(1.0f, 0.0f, 0.0f);
+            std::cout
+                << "Warning: Orbit direction was parallel to orbit normal, reset to (1,0,0)."
+                << std::endl;
+        }
         smallRadius = small_r;
         largeRadius = large_r;
         orbitPeriod = period;

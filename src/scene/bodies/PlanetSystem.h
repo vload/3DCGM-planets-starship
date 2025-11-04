@@ -104,8 +104,40 @@ class PlanetSystem {
         ImGui::SliderInt("Selected Body", &selected_body, 0,
                          (int)bodies.size() - 1);
         bodies[selected_body]->imGuiControl();
-    }
 
+        ImGui::Separator();
+        ImGui::Text("Add body orbiting selected body:");
+        if (ImGui::Button("Add Earth")) {
+            bodies.push_back(new Earth(
+                config, glm::vec3(0.0f), 1.0f, ico_mesh));
+            bodies.back()->set_orbit(
+                glm::vec3(1.0f, 0.0f, 0.0f), 5.0f, 10.0f,
+                glm::vec3(0.0f, 1.0f, 0.0f), 10.0f,
+                bodies[selected_body]);
+            bodies.back()->setup();
+            selected_body = (int)bodies.size() - 1;
+        }
+        // if( ImGui::Button("Add Star")) {
+        //     bodies.push_back(new Star(
+        //         config, glm::vec3(0.0f), 1.0f, ico_mesh));
+        //     bodies.back()->set_orbit(
+        //         glm::vec3(1.0f, 0.0f, 0.0f), 5.0f, 10.0f,
+        //         glm::vec3(0.0f, 1.0f, 0.0f), 10.0f,
+        //         bodies[selected_body]);
+        //         bodies.back()->setup();
+        //     selected_body = (int)bodies.size() - 1;
+        // }
+        if (ImGui::Button("Add Default Body")) {
+            bodies.push_back(new Body(
+                config, glm::vec3(0.0f), 1.0f, ico_mesh));
+            bodies.back()->set_orbit(
+                glm::vec3(1.0f, 0.0f, 0.0f), 5.0f, 10.0f,
+                glm::vec3(0.0f, 1.0f, 0.0f), 10.0f,
+                bodies[selected_body]);
+            bodies.back()->setup();
+            selected_body = (int)bodies.size() - 1;
+        }
+    }
     void update(float delta_time) {
         for (Body* body : bodies) {
             // assume sun is bodies[0]

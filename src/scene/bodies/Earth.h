@@ -1,5 +1,6 @@
 #pragma once
 #include "scene/bodies/Body.h"
+#include <cstdio>
 
 class Earth : public Body {
    public:
@@ -18,11 +19,15 @@ class Earth : public Body {
         earthBuilder.addStage(GL_FRAGMENT_SHADER,
                             RESOURCE_ROOT "shaders/bodies/earth_frag.glsl");
         shader = earthBuilder.build();
+
+        // set pseudo seed. not using c++ random for simplicity
+        // not setting srand because we don't care if these are different each run
+        shape_noise_pseudo_seed = static_cast<float>(rand() % 10000) / 1000.0f;
     }
 
-    void update(float deltaTime) {
-        Body::update(deltaTime);
-    }
+    // void update(float deltaTime, glm::vec3 p_light_position = glm::vec3(0.0f)) {
+    //     Body::update(deltaTime, p_light_position);
+    // }
 
     bool needs_shadow_map() { return true; }
 
@@ -33,7 +38,7 @@ class Earth : public Body {
         ImGui::SliderFloat("Shape Noise Lacunarity", &shape_noise_lacunarity, 1.0f, 4.0f, "%.2f");
         ImGui::SliderFloat("Shape Noise Persistence", &shape_noise_persistence, 0.0f, 1.0f, "%.2f");
         ImGui::SliderFloat("Shape Noise Base Frequency", &shape_noise_base_frequency, 1.0f, 10.0f, "%.2f");
-        ImGui::SliderFloat("Shape Noise Pseudo Seed", &shape_noise_pseudo_seed, 0.0f, 10000.0f, "%.2f");
+        ImGui::SliderFloat("Shape Noise Pseudo Seed", &shape_noise_pseudo_seed, 0.0f, 100.0f, "%.2f");
         ImGui::SliderFloat("Shape Noise Scale", &shape_noise_scale, 0.0f, 1.0f, "%.2f");
         ImGui::Separator();
         ImGui::SliderInt("Water Noise Octaves", &water_noise_octaves, 1, 10);
@@ -79,6 +84,10 @@ class Earth : public Body {
         glUniform1f(shader.getUniformLocation("waterShininess"), waterShininess);
         glUniform1f(shader.getUniformLocation("ocean_normal_gradient_multiplier"),
                     ocean_normal_gradient_multiplier);
+        glUniform1f(shader.getUniformLocation("surface_ka"),
+                    surface_ka);
+        glUniform1f(shader.getUniformLocation("surface_kd"),
+                    surface_kd);
     }
 
    protected:
@@ -88,9 +97,10 @@ class Earth : public Body {
     float shape_noise_persistence = 0.45f;
     float shape_noise_base_frequency = 1.2f;
     float ocean_level = 0.0f;
-    // TODO: use a different seed per planet?
     float shape_noise_pseudo_seed = 100.0f;
     float shape_noise_scale = 0.25f;
+    float surface_ka = 0.1f;
+    float surface_kd = 0.9f;
     // Earth water parameters
     int water_noise_octaves = 5;
     float water_noise_lacunarity = 2.0f;
