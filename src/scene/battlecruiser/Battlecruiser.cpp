@@ -8,10 +8,30 @@
 #include <iostream>
 #include <glm/gtx/quaternion.hpp>
 #include <imgui/imgui.h>
+#include <stb/stb_image.h>
+
+void Battlecruiser::loadTexture(const char *filename, GLuint &texture) {
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+
+    if (!data)
+        std::cerr << "Failed to load texture" << std::endl;
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    stbi_image_free(data);
+}
 
 
 Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
-    const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
+    const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser/Untitled.obj");
 
     for (const auto &mesh: meshes) {
         MeshGL m;
@@ -41,14 +61,22 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
         glEnableVertexAttribArray(2); //tex Coordinates
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, texCoord));
 
-        glBindVertexArray(0);
+        glEnableVertexAttribArray(3); //tangent for TBN
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, tangent));
 
         m.indexCount = mesh.triangles.size() * 3;
         m.materialName = mesh.material.name;
 
-        std::cout << "Mesh detected: " << m.materialName << std::endl;
-        std::cout << "Mesh vertices: " << mesh.vertices.size()
-                << " triangles: " << mesh.triangles.size() << std::endl;
+        // if (m.materialName == "Material-Cannon") {
+        //
+        // }
+
+        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-albedo.png", m.baseMap);
+        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-normal-ogl.png", m.normalMap);
+        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-metallic.png", m.metallicMap);
+        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-roughness.png", m.roughnessMap);
+
+        glBindVertexArray(0);
 
         meshGLs.push_back(m);
     }
@@ -84,6 +112,8 @@ void Battlecruiser::draw(const glm::mat4 &view,
         4.5f
     };
 
+    glm::vec3 lightColor = glm::vec3(1.0f);
+
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
 
@@ -95,42 +125,36 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
+    glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+    glUniform3fv(mainShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(thruster.pos));
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightDir"), 1, glm::value_ptr(thruster.dir));
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(thruster.color));
-    glUniform1f(mainShader.getUniformLocation("thrusterThresholdLight"), thruster.thresholdLight);
-    glUniform1f(mainShader.getUniformLocation("thrusterLightIntensity"), thruster.intensity);
-    glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
+    // glUniform3fv(mainShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(thruster.pos));
+    // glUniform3fv(mainShader.getUniformLocation("thrusterLightDir"), 1, glm::value_ptr(thruster.dir));
+    // glUniform3fv(mainShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(thruster.color));
+    // glUniform1f(mainShader.getUniformLocation("thrusterThresholdLight"), thruster.thresholdLight);
+    // glUniform1f(mainShader.getUniformLocation("thrusterLightIntensity"), thruster.intensity);
+    // glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
 
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
-        if (m.materialName == "Steel_-_Satin") {
-            glBindVertexArray(m.vao);
-            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
-        }
-    }
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, m.baseMap);
+        glUniform1i(mainShader.getUniformLocation("textureBase"), 0);
 
-    // --- Pass 2: reflective meshes ---
-    // Skip depth testing to avoid artifacts inside the windows
-    glDepthMask(GL_FALSE);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, m.normalMap);
+        glUniform1i(mainShader.getUniformLocation("textureNormal"), 1);
 
-    reflectiveShader.bind();
+        glActiveTexture(GL_TEXTURE2);
+        glBindTexture(GL_TEXTURE_2D, m.metallicMap);
+        glUniform1i(mainShader.getUniformLocation("textureMetallic"), 2);
 
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-    glUniform1i(reflectiveShader.getUniformLocation("environmentMap"), 0);
-    glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+        glActiveTexture(GL_TEXTURE3);
+        glBindTexture(GL_TEXTURE_2D, m.roughnessMap);
+        glUniform1i(mainShader.getUniformLocation("textureRoughness"), 3);
 
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(getModelMatrix()));
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-
-    for (const auto &m: meshGLs) {
-        if (m.materialName == "Window-Cabin-Material") {
-            glBindVertexArray(m.vao);
-            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
-        }
+        glBindVertexArray(m.vao);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
     }
 }
 

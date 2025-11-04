@@ -57,13 +57,13 @@ private:
 
     glm::vec3 upVector = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f));
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
 
     std::vector<glm::vec3> relativePositionThrusters = {
-        glm::vec3(0.0f, -0.5f, -22.0f),
-        glm::vec3(0.0f, 8.5f, -22.0f),
-        glm::vec3(4.5f, 4.0f, -22.0f),
-        glm::vec3(-4.5f, 4.0f, -22.0f)
+        glm::vec3(0.0f, -0.025f, -1.1f),
+        glm::vec3(0.0f, 0.425f, -1.1f),
+        glm::vec3(0.225f, 0.2f, -1.1f),
+        glm::vec3(-0.225f, 0.2f, -1.1f)
     };
 
     Shader mainShader;
@@ -72,6 +72,7 @@ private:
 
     std::vector<MeshGL> meshGLs;
 
+    static void loadTexture(const char *filename, GLuint &texture);
     void updateVelocityPositionFreeMovement(float deltaTime);
     void updateVelocityPositionPathMovement(float deltaTime);
 };

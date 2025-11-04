@@ -25,6 +25,11 @@ static glm::vec3 construct_vec3(const float* pFloats)
     return glm::vec3(pFloats[0], pFloats[1], pFloats[2]);
 }
 
+static glm::vec2 construct_vec2(const float* pFloats)
+{
+    return glm::vec2(pFloats[0], pFloats[1]);
+}
+
 // https://stackoverflow.com/questions/2590677/how-do-i-combine-hash-values-in-c0x
 template <class T>
 static void hash_combine(std::size_t& seed, const T& v)
@@ -91,6 +96,24 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, const LoadMeshSett
                 const glm::vec3 v0 = construct_vec3(&inAttrib.vertices[3 * shape.mesh.indices[i + 0].vertex_index]);
                 const glm::vec3 v1 = construct_vec3(&inAttrib.vertices[3 * shape.mesh.indices[i + 1].vertex_index]);
                 const glm::vec3 v2 = construct_vec3(&inAttrib.vertices[3 * shape.mesh.indices[i + 2].vertex_index]);
+
+                const glm::vec2 uv0 = construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 0].texcoord_index]);
+                const glm::vec2 uv1 = construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 1].texcoord_index]);
+                const glm::vec2 uv2 = construct_vec2(&inAttrib.texcoords[2 * shape.mesh.indices[i + 2].texcoord_index]);
+
+                glm::vec3 edge1 = v1 - v0;
+                glm::vec3 edge2 = v2 - v0;
+                glm::vec2 deltaUV1 = uv1 - uv0;
+                glm::vec2 deltaUV2 = uv2 - uv0;
+
+                float f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
+
+                glm::vec3 tangent;
+                tangent.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
+                tangent.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
+                tangent.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
+                tangent = glm::normalize(tangent);
+
                 const auto geometricNormal = glm::normalize(glm::cross(v1 - v0, v2 - v0));
 
                 // Load the triangle indices and lazily create the vertices.
@@ -100,7 +123,8 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, const LoadMeshSett
                     Vertex vertex {
                         .position = construct_vec3(&inAttrib.vertices[3 * tinyObjIndex.vertex_index]),
                         .normal = glm::vec3(0),
-                        .texCoord = glm::vec2(0)
+                        .texCoord = glm::vec2(0),
+                        .tangent = glm::vec3(0),
                     };
                     if (tinyObjIndex.normal_index != -1 && !inAttrib.normals.empty())
                         vertex.normal = glm::vec3(inAttrib.normals[3 * tinyObjIndex.normal_index + 0], inAttrib.normals[3 * tinyObjIndex.normal_index + 1], inAttrib.normals[3 * tinyObjIndex.normal_index + 2]);
@@ -112,10 +136,13 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, const LoadMeshSett
                     const CacheKey cacheKey { tinyObjIndex.vertex_index, tinyObjIndex.normal_index, tinyObjIndex.texcoord_index };
                     if (auto iter = vertexCache.find(cacheKey); settings.cacheVertices && iter != std::end(vertexCache)) {
                         // Already visited this vertex? Reuse it!
+                        mesh.vertices[triangle[j]].tangent += tangent;
+
                         triangle[j] = iter->second;
                     } else {
                         // New vertex? Create it and store it in the vertex cache.
                         vertexCache[cacheKey] = triangle[j] = (unsigned)mesh.vertices.size();
+                        vertex.tangent = tangent;
                         mesh.vertices.push_back(vertex);
                     }
                 }
@@ -137,6 +164,11 @@ std::vector<Mesh> loadMesh(const std::filesystem::path& file, const LoadMeshSett
                 mesh.material.shininess = objMaterial.shininess;
                 mesh.material.transparency = objMaterial.dissolve;
                 mesh.material.name = objMaterial.name;
+            }
+
+            for (auto& v : mesh.vertices) {
+                // orthogonalize the tangent to the vertex normal (Gram-Schmidt)
+                v.tangent = glm::normalize(v.tangent - v.normal * glm::dot(v.normal, v.tangent));
             }
 
             out.push_back(std::move(mesh));

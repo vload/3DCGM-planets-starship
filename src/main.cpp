@@ -229,7 +229,7 @@ int main() {
             reset_opengl_state();
             battlecruiser.draw(
                 active_camera->get_view_matrix(), projection_matrix,
-                glm::vec3(10.0f, 10.0f, 10.0f), active_camera->get_position(),
+                glm::vec3(0.0f, 0.0f, 0.0f), active_camera->get_position(),
                 skybox.getCubemapTexture());
 
             /// -- Pass #6: Render battlecruiser Bezier Path
@@ -237,8 +237,8 @@ int main() {
             battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
 
             /// -- Pass #7: Render battlecruiser Particles
-            reset_opengl_state();
-            particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
+            // reset_opengl_state();
+            // particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
         }
 
         //// ---- Swap buffers
