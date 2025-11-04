@@ -82,6 +82,18 @@ public:
 
     BattlecruiserPathInfo battlecruiser_path_info;
     EarthParams earth_params;
+
+    // Star-specific parameters (surface noise / animation)
+    struct StarParams {
+        int noise_octaves = 5;
+        float noise_lacunarity = 2.0f;
+        float noise_persistence = 0.3f;
+        float warp_noise_scale = 1.5f;
+        float noise_scale = 20.0f;
+        float animation_speed = 0.3f;
+    };
+
+    StarParams star_params;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -204,6 +216,22 @@ public:
         enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
         enable_shadow_mapping_planets = data["shadows"]["enable_shaddow_mapping_planets"].value_or(false);
         shadow_map_size = data["shadows"]["shadow_map_size"].value_or(2048);
+
+        // Read star-specific params (global defaults for "star" type)
+        if (toml::table* star_table = data["planets"]["star"].as_table()) {
+            star_params.noise_octaves =
+                star_table->get("noise_octaves")->value_or(5);
+            star_params.noise_lacunarity =
+                star_table->get("noise_lacunarity")->value_or(2.0f);
+            star_params.noise_persistence =
+                star_table->get("noise_persistence")->value_or(0.3f);
+            star_params.warp_noise_scale =
+                star_table->get("warp_noise_scale")->value_or(1.5f);
+            star_params.noise_scale =
+                star_table->get("noise_scale")->value_or(20.0f);
+            star_params.animation_speed =
+                star_table->get("animation_speed")->value_or(0.3f);
+        }
     }
 
 private:
