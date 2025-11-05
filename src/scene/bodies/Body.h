@@ -14,8 +14,11 @@ DISABLE_WARNINGS_POP()
 #include "core/config.h"
 #include "core/mesh.h"
 
-// This is a planet / star / space body base class with primitive default
-// behavior.
+// This is a celestial body base class with default render behavior.
+// It implements orbiting mechanics around a parent body.
+// It also implements tessellated geodesic icosahedron rendering with shadow mapping.
+// It also implements tessellated geodesic icosahedron rendering with shadow mapping.
+
 class Body {
    private:
     Config& config;
@@ -34,6 +37,8 @@ class Body {
           shadow_map(config),
           shadow_map2(config) {
         color = config.body_fallback_color;
+        default_ka = config.planet_fallback_ka;
+        default_kd = config.planet_fallback_kd;
     }
 
     glm::vec3 getPosition() const { return position; }
@@ -56,9 +61,9 @@ class Body {
         }
     }
 
-    /*virtual*/ void update(float deltaTime,
+    void update(float deltaTime,
                             glm::vec3 p_light_position1 = glm::vec3(0.0f), glm::vec3 p_light_position2 = glm::vec3(0.0f)) {
-        // Update light matrices for shadow mapping
+        // Update light matrices for shadow mapping light 1
         light_position1 = p_light_position1;
         light_view_matrix1 =
             glm::lookAt(light_position1, position, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -71,6 +76,7 @@ class Body {
             glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f,
                        radius * 2.0f, near_plane, far_plane);
         
+        // Update light matrices for shadow mapping light 2
         light_position2 = p_light_position2;
         light_view_matrix2 =
             glm::lookAt(light_position2, position, glm::vec3(0.0f, 1.0f, 0.0f));
@@ -83,7 +89,6 @@ class Body {
             glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f,
                        radius * 2.0f, near_plane, far_plane);
 
-        
         // Update body state based on deltaTime
         if (parent == nullptr) {
             position = glm::vec3(0.0f);  // no orbiting if no parent
@@ -120,17 +125,17 @@ class Body {
     }
 
     virtual void imGuiControl() {
-        ImGui::DragFloat("Planet Radius", &radius, 0.01f, 0.1f, 10.0f, "%.2f");
-        ImGui::DragFloat("Test", &test, 0.01f, 0.0f, 2.00f, "%.3f");
+        ImGui::DragFloat("Celestial Body Radius", &radius, 0.01f, 0.1f, 10.0f, "%.2f");
+        ImGui::ColorEdit3("Fallback Color", glm::value_ptr(color));
         ImGui::Separator();
         ImGui::Text("Orbit Controls");
-        ImGui::DragFloat3("Orbit direction",
-                          glm::value_ptr(param_orbit_direction), 0.01f, -1.0f,
-                          1.0f, "%.2f");
         ImGui::DragFloat("Small Radius", &param_small_radius, 0.1f, 0.0f,
                          100.0f, "%.2f");
         ImGui::DragFloat("Large Radius", &param_large_radius, 0.1f, 0.0f,
                          100.0f, "%.2f");
+        ImGui::DragFloat3("Orbit direction",
+                          glm::value_ptr(param_orbit_direction), 0.01f, -1.0f,
+                          1.0f, "%.2f");
         ImGui::DragFloat3("Orbit Normal", glm::value_ptr(param_orbit_normal),
                           0.01f, -1.0f, 1.0f, "%.3f");
         ImGui::DragFloat("Orbit Period (s)", &param_orbit_period, 0.01f, 0.001f,
@@ -140,14 +145,14 @@ class Body {
                       param_large_radius, param_orbit_normal,
                       param_orbit_period, parent);
         }
-        ImGui::ColorEdit3("Fallback Color", glm::value_ptr(color));
     }
 
     virtual void set_uniforms() {  // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
-        glUniform1f(shader.getUniformLocation("test"), test);
         glUniform3fv(shader.getUniformLocation("body_color"), 1,
                      glm::value_ptr(color));
+        glUniform1f(shader.getUniformLocation("default_ka"), default_ka);
+        glUniform1f(shader.getUniformLocation("default_kd"), default_kd);
     }
 
     virtual bool needs_shadow_map() { return false; }
@@ -255,7 +260,6 @@ class Body {
     GPUMesh& icosahedronMesh;
     glm::vec3 position;
     float radius;
-    float test = 0.1f;
 
     // Orbit parameters
     Body* parent = nullptr;  // the body this one orbits around
@@ -284,6 +288,10 @@ class Body {
     glm::mat4 light_view_matrix2;
     glm::vec3 light_position2;
     glm::mat4 light_projection_matrix2;
+    
+    // shading params
+    float default_ka = 0.1f;
+    float default_kd = 1.0f;
 
     // default body params
     glm::vec3 color{0.3f, 0.3f, 1.0f};

@@ -13,6 +13,7 @@ class Star : public Body {
         warp_noise_scale = config.star_params.warp_noise_scale;
         noise_scale = config.star_params.noise_scale;
         animation_speed = config.star_params.animation_speed;
+        temperature = config.default_star_temperature;
     }
 
     void setup() {
@@ -28,23 +29,9 @@ class Star : public Body {
         shader = starBuilder.build();
     }
 
-    // void update(float deltaTime, glm::vec3 p_light_position =
-    // glm::vec3(0.0f)) {
-    //     Body::update(deltaTime, p_light_position);
-    // }
-
     void imGuiControl() {
         Body::imGuiControl();
         ImGui::Separator();
-        // ImGui::Text("Star Surface Noise Controls");
-        // ImGui::SliderInt("Noise Octaves", &noise_octaves, 1, 10);
-        // ImGui::SliderFloat("Noise Lacunarity",
-        // &noise_lacunarity, 1.0f, 4.0f); ImGui::SliderFloat("Noise
-        // Persistence", &noise_persistence, 0.1f, 1.0f);
-        // ImGui::SliderFloat("Warp Noise Scale", &warp_noise_scale,
-        // 0.1f, 5.0f); ImGui::SliderFloat("Noise Scale", &noise_scale, 1.0f,
-        // 100.0f); ImGui::SliderFloat("Animation Speed", &animation_speed,
-        // 0.1f, 1.0f);
         ImGui::SliderFloat("Temperature (C)", &temperature, 3000.0f, 40000.0f);
     }
 
@@ -59,8 +46,6 @@ class Star : public Body {
         glUniform1f(shader.getUniformLocation("noise_scale"), noise_scale);
         glUniform1f(shader.getUniformLocation("animation_speed"),
                     animation_speed);
-        // glUniform1f(shader.getUniformLocation("star_temperature"),
-        // temperature);
         glm::vec4 starColorIntensity = getStarColorIntensity();
         glUniform4fv(shader.getUniformLocation("star_color_intensity"), 1,
                      &starColorIntensity[0]);

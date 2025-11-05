@@ -420,6 +420,7 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
         // Sanity checks
         if (bodyRadius <= 0.0) continue;                        // skip degenerate bodies
         if (length(planet_center - bodyPos) < 0.01) continue;   // skip self-eclipse
+        if (length(sunPos - bodyPos) < 0.01) continue;          // skip if body is the light source
 
         vec3 toBody = bodyPos - fragPos;
         if(dot(toLight, toBody) <= 0.0) continue;               // body is behind fragment relative to light

@@ -19,6 +19,7 @@ DISABLE_WARNINGS_PUSH()
 DISABLE_WARNINGS_POP()
 #include <framework/shader.h>
 #include <framework/window.h>
+#include <scene/battlecruiser/BezierPath.h>
 
 #include <cmath>
 #include <functional>
@@ -30,10 +31,9 @@ DISABLE_WARNINGS_POP()
 #include "scene/Skybox.h"
 #include "scene/battlecruiser/Battlecruiser.h"
 #include "scene/bodies/PlanetSystem.h"
+#include "scene/camera/BattlecruiserCamera.h"
 #include "scene/camera/Camera.h"
 #include "scene/camera/FreeCamera.h"
-#include "scene/camera/BattlecruiserCamera.h"
-#include <scene/battlecruiser/BezierPath.h>
 
 int WIDTH_WINDOW = 1280;
 int HEIGHT_WINDOW = 720;
@@ -68,11 +68,10 @@ void reset_opengl_state() {
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-void load_config(Config &config) {
+void load_config(Config& config, const char* config_path) {
     try {
-        // TODO: add path as parameter to main
-        config.load_config(RESOURCE_ROOT "binary.toml");
-    } catch (const std::exception &e) {
+        config.load_config(config_path);
+    } catch (const std::exception& e) {
         std::cerr << "Error loading config: " << e.what() << std::endl;
         // Handle error appropriately (e.g., set default values or exit)
         // For now, we'll just exit
@@ -80,11 +79,19 @@ void load_config(Config &config) {
     }
 }
 
-int main() {
+int main(int argc, char** argv) {
+    //// parse command line arguments for config path
+    const char* config_path = RESOURCE_ROOT "configurations/default.toml";
+    if (argc > 1) {
+        config_path = argv[1];
+    }
+
+    // config_path = RESOURCE_ROOT "configurations/geodesic_resolution_3.toml";
+
     //// -------- Setup:
     /// ---- Load configuration
     Config config;
-    load_config(config);
+    load_config(config, config_path);
 
     /// ---- Window setup
     WIDTH_WINDOW = config.window_initial_width;
@@ -95,7 +102,7 @@ int main() {
     bool window_resized = false;
     window.registerWindowResizeCallback([&](glm::ivec2 newSize) {
         std::cout << "Window resized to: " << newSize.x << "x" << newSize.y
-                << std::endl;
+                  << std::endl;
         window_resized = true;
     });
     window.registerWindowResizeCallback([&](glm::ivec2 newSize) {
@@ -111,7 +118,7 @@ int main() {
     /// ---- Camera setup
     FreeCamera freecam(window, config);
 
-    Camera *active_camera = &freecam;
+    Camera* active_camera = &freecam;
 
     // TODO: minimap camera
 
@@ -143,16 +150,17 @@ int main() {
     /// -- Battlecruiser Particles
     ParticleSystem particles(battlecruiser);
 
-    window.registerKeyCallback([&](int key, int scancode, int action, int mods) {
-        if (action == GLFW_PRESS) {
-            if (key == GLFW_KEY_1) {
-                active_camera = &freecam;
+    window.registerKeyCallback(
+        [&](int key, int scancode, int action, int mods) {
+            if (action == GLFW_PRESS) {
+                if (key == GLFW_KEY_1) {
+                    active_camera = &freecam;
+                }
+                if (key == GLFW_KEY_2) {
+                    active_camera = &battlecruiserCamera;
+                }
             }
-            if (key == GLFW_KEY_2) {
-                active_camera = &battlecruiserCamera;
-            }
-        }
-    });
+        });
 
     /// ---- Other setup
     // TODO : ????
@@ -178,21 +186,22 @@ int main() {
         // -- Update battlecruiser camera
         battlecruiserCamera.update_input();
         // -- Update battlecruiser particles
-        particles.update(active_camera->get_position(), static_cast<float>(delta_time));
+        particles.update(active_camera->get_position(),
+                         static_cast<float>(delta_time));
 
         /// -- Update bodies
-        planet_system.update(time_warp * (float) delta_time);
+        planet_system.update(time_warp * (float)delta_time);
 
         /// ---- ImGui
         // window.update_input already called ImGui::NewFrame()
         ImGui::Begin("Window");
         /// -- ImGui debug mode
         ImGui::Checkbox("Debug Mode", &debug_mode);
-        /// -- Reload config button
-        if (ImGui::Button("Reload Config")) {
-            load_config(config);
-            std::cout << "Config reloaded." << std::endl;
-        }
+        // /// -- Reload config button
+        // if (ImGui::Button("Reload Config")) {
+        //     load_config(config, config_path);
+        //     std::cout << "Config reloaded." << std::endl;
+        // }
         if (debug_mode) {
             // nothing to debug
         } else {
@@ -219,7 +228,8 @@ int main() {
             reset_opengl_state();
             skybox.draw(active_camera->get_view_matrix(), projection_matrix);
 
-            /// -- Pass #2 and #3: Shadow-map per body(that needs it) and Render Bodies
+            /// -- Pass #2 and #3: Shadow-map per body(that needs it) and Render
+            /// Bodies
             reset_opengl_state();
             planet_system.draw(active_camera->get_view_matrix(),
                                projection_matrix, active_camera->get_position(),
@@ -235,11 +245,13 @@ int main() {
 
             /// -- Pass #6: Render battlecruiser Bezier Path
             reset_opengl_state();
-            battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
+            battlecruiser.drawBezierPath(active_camera->get_view_matrix(),
+                                         projection_matrix);
 
             /// -- Pass #7: Render battlecruiser Particles
             reset_opengl_state();
-            particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
+            particles.draw_stage(active_camera->get_view_matrix(),
+                                 projection_matrix);
         }
 
         //// ---- Swap buffers

@@ -40,8 +40,8 @@ class PlanetSystem {
     Config& config;
     GPUMesh ico_mesh{Mesh{}};
 
-    float target_body_tessellation_triangle_height = 1.0f;
-    bool enable_body_tessellation = true;
+    float target_body_tessellation_triangle_height = config.target_triangle_height;
+    bool enable_body_tessellation = config.enable_body_tesellation;
     bool enable_eclipse = true;
     bool enable_shadowmapping = true;
     int PCF_kernel_radius = 1;
@@ -49,6 +49,8 @@ class PlanetSystem {
     bool is_binary_system = false;
     bool planet_water_normals_enabled = true;
     bool planet_surface_normals_enabled = true;
+    bool sun_texture_enabled = config.enable_star_texture;
+    bool use_star_color = config.use_star_color;
 
    public:
     PlanetSystem(Config& config) : config(config) {
@@ -128,8 +130,10 @@ class PlanetSystem {
         ImGui::DragInt("PCF Kernel Radius", &PCF_kernel_radius, 1, 0, 10);
         ImGui::Checkbox("Enable Planet Water Normals", &planet_water_normals_enabled);
         ImGui::Checkbox("Enable Planet Surface Normals", &planet_surface_normals_enabled);
+        ImGui::Checkbox("Enable Star Texture / Animation", &sun_texture_enabled);
+        ImGui::Checkbox("Use Star Color for Lighting", &use_star_color);
         ImGui::SliderInt("Selected Body", &selected_body, 0,
-                         (int)bodies.size() - 1);
+            (int)bodies.size() - 1);
         bodies[selected_body]->imGuiControl();
 
         ImGui::Separator();
@@ -199,13 +203,19 @@ class PlanetSystem {
             float radius = body->getRadius();
             Star* star = dynamic_cast<Star*>(body);
             if (star != nullptr) {
-                sun_pos_rads.push_back(glm::vec4(pos, radius));
-                sun_col_ints.push_back(star->getStarColorIntensity());
-                // sun_col_ints.push_back(
-                    // glm::vec4(glm::vec3(1.0), star->getStarColorIntensity().w));
-            } else {
-                bodies_pos_rad.push_back(glm::vec4(pos, radius));
+                // only first stars are light sources
+                if(sun_pos_rads.size() < (is_binary_system ? 2 : 1)) {
+                    sun_pos_rads.push_back(glm::vec4(pos, radius));
+                    if(use_star_color){
+                        sun_col_ints.push_back(star->getStarColorIntensity());
+                    }
+                    else{
+                        sun_col_ints.push_back(glm::vec4(glm::vec3(1.0), star->getStarColorIntensity().w));
+                    }
+                }
             }
+
+            bodies_pos_rad.push_back(glm::vec4(pos, radius));
         }
 
         // shadow map pass
@@ -295,6 +305,8 @@ class PlanetSystem {
                         PCF_kernel_radius);
             glUniform1i(body->shader.getUniformLocation("enable_PCF"),
                         enable_PCF ? 1 : 0);
+            glUniform1i(body->shader.getUniformLocation("sun_texture_enabled"),
+                        sun_texture_enabled ? 1 : 0);
 
             body->draw(view_matrix, projection_matrix, camera_position);
         }

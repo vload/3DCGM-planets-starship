@@ -75,12 +75,18 @@ public:
     float gamma;
 
     int planets_ico_mesh_resolution;
+    bool enable_body_tesellation;
+    float target_triangle_height;
     std::vector<PlanetInfo> planets;
 
     bool enable_eclipse_shadows;
     bool enable_shadow_mapping_planets;
     int shadow_map_size;
     bool is_binary_system;
+    bool use_star_color;
+
+    float planet_fallback_ka;
+    float planet_fallback_kd;
     
     glm::vec3 body_fallback_color;
 
@@ -98,7 +104,9 @@ public:
     };
 
     StarParams star_params;
-    
+    bool enable_star_texture;
+    float default_star_temperature;
+
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
         toml::table data = toml::parse_file(path);
@@ -115,8 +123,8 @@ public:
             tomlArrayToVec3(
                 data["camera"]["freecam"]["initial_forward"].as_array())
                 .value_or(glm::vec3(-1.0f, 0.0f, 0.0f));
-        freecam_move_speed = data["camera"]["freecam"]["move_speed"].value_or(0.5f);
-        freecam_look_speed = data["camera"]["freecam"]["look_speed"].value_or(0.035f);
+        freecam_move_speed = data["camera"]["freecam"]["move_speed"].value_or(0.2f);
+        freecam_look_speed = data["camera"]["freecam"]["look_speed"].value_or(0.005f);
 
         planets_ico_mesh_resolution = data["planets"]["ico_mesh_resolution"].value_or(5);
         target_gray_brightness = data["camera"]["target_gray_brightness"].value_or(0.4f);
@@ -128,7 +136,11 @@ public:
                 .value_or(glm::vec3(0.3f, 0.3f, 1.0f));
 
         is_binary_system = data["planets"]["binary_system"].value_or(false);
-
+        planet_fallback_ka = data["planets"]["fallback_ka"].value_or(0.1f);
+        planet_fallback_kd = data["planets"]["fallback_kd"].value_or(1.0f);
+        enable_body_tesellation = data["planets"]["enable_body_tesellation"].value_or(true);
+        target_triangle_height = data["planets"]["target_triangle_height"].value_or(1.0f);
+        
         // Get the underlying array object for planets_info
         if (toml::array* planets_array = data["planets"]["planets_info"].as_array()) {
             planets_array->for_each([&](auto&& planet) {
@@ -224,7 +236,7 @@ public:
         enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
         enable_shadow_mapping_planets = data["shadows"]["enable_shaddow_mapping_planets"].value_or(false);
         shadow_map_size = data["shadows"]["shadow_map_size"].value_or(2048);
-
+        use_star_color = data["planets"]["use_star_color"].value_or(true);
         // Read star-specific params (global defaults for "star" type)
         if (toml::table* star_table = data["planets"]["star"].as_table()) {
             star_params.noise_octaves =
@@ -239,6 +251,10 @@ public:
                 star_table->get("noise_scale")->value_or(20.0f);
             star_params.animation_speed =
                 star_table->get("animation_speed")->value_or(0.3f);
+            enable_star_texture =
+                star_table->get("enable_star_texture")->value_or(true);
+            default_star_temperature =
+                star_table->get("default_star_temperature")->value_or(5778.0f);
         }
     }
 

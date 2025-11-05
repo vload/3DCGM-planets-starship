@@ -17,9 +17,14 @@ look_speed = 0.005                 # this is basically sensitivity
 # [camera.minimap]
 
 [planets]
+enable_body_tesellation = true
+target_triangle_height = 1.0
 ico_mesh_resolution = 8
 fallback_color = [1.0, 0.3, 0.3]
 binary_system = false
+fallback_ka = 0.1
+fallback_kd = 1.0
+use_star_color = true
 planets_info = [
     # example entries:
     # [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
@@ -89,6 +94,8 @@ planets_info = [
     warp_noise_scale = 1.5
     noise_scale = 20.0
     animation_speed = 0.3
+    enable_star_texture = true
+    default_star_temperature = 5778.0
 
 
 
