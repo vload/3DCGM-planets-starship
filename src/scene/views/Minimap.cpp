@@ -84,7 +84,7 @@ void Minimap::initBuffers() {
         .build();
 }
 
-void Minimap::draw(const std::vector<Body*>& bodies, glm::vec3 positionBattleCruiser) {
+void Minimap::draw(const std::vector<Body*>& bodies, const std::vector<glm::vec3>& positionPoints, glm::vec3 positionBattleCruiser) {
     std::vector<Object> planets = convertBodyToObjects(bodies);
 
     glBindFramebuffer(GL_FRAMEBUFFER, minimapFrameBuffer);
@@ -105,6 +105,9 @@ void Minimap::draw(const std::vector<Body*>& bodies, glm::vec3 positionBattleCru
     glUniformMatrix4fv(minimapShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
     glBindVertexArray(vao);
+
+    std::vector<Object> points = convertBezierPointsToObjects(positionPoints, 1.0f, glm::vec3(1.0f));
+
     for (const auto& planet : planets) {
         glm::vec2 pos(planet.position.x, planet.position.z);
         float scale = planet.radius * 2.0f; // visual scale
@@ -117,11 +120,23 @@ void Minimap::draw(const std::vector<Body*>& bodies, glm::vec3 positionBattleCru
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
     }
 
+    for (const auto &point : points) {
+        glm::vec2 pos(point.position.x, point.position.z);
+        float scale = point.radius; // visual scale
+
+        glUniform1i(minimapShader.getUniformLocation("isPlanet"), 1);
+        glUniform2fv(minimapShader.getUniformLocation("planetPos"), 1, glm::value_ptr(pos));
+        glUniform3fv(minimapShader.getUniformLocation("planetColor"), 1, glm::value_ptr(point.color));
+        glUniform1f(minimapShader.getUniformLocation("planetScale"), scale);
+
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+    }
+
     glm::vec2 pos(positionBattleCruiser.x, positionBattleCruiser.z);
     float scale = 5.0f; // visual scale
     glUniform1i(minimapShader.getUniformLocation("isPlanet"), 0);
     glUniform2fv(minimapShader.getUniformLocation("planetPos"), 1, glm::value_ptr(pos));
-    glUniform3fv(minimapShader.getUniformLocation("planetColor"), 1, glm::value_ptr(glm::vec3(1.0f)));
+    glUniform3fv(minimapShader.getUniformLocation("planetColor"), 1, glm::value_ptr(glm::vec3(0.7f)));
     glUniform1f(minimapShader.getUniformLocation("planetScale"), scale);
 
     glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
@@ -132,7 +147,7 @@ void Minimap::draw(const std::vector<Body*>& bodies, glm::vec3 positionBattleCru
 void Minimap::drawToScreen(int windowWidth, int windowHeight) {
     glDisable(GL_DEPTH_TEST);
 
-    int mapSize = 256;
+    int mapSize = 512;
     int margin = 10;
     glViewport(windowWidth - mapSize - margin, margin, mapSize, mapSize);
 

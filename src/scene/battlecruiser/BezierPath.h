@@ -1,12 +1,8 @@
 #pragma once
 #include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
 #include <vector>
 #include <core/config.h>
 #include <framework/shader.h>
-#include <framework/mesh.h>
-#include <framework/window.h>
-#include "Battlecruiser.h"
 
 struct BezierArcLengthTable {
     std::vector<float> tValues;
@@ -32,6 +28,8 @@ public:
 
     glm::vec3 getCurrentPosition() const;
     glm::vec3 getCurrentVelocity() const;
+
+    std::vector<glm::vec3> getBezierSampledPoints();
 
 private:
     GLuint vbo = 0;

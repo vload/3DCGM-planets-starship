@@ -263,7 +263,7 @@ int main(int argc, char** argv) {
 
             // Pass #9: Render minimap scene into its FBO
             reset_opengl_state();
-            minimap.draw(planet_system.getBodies(), battlecruiser.getPosition());
+            minimap.draw(planet_system.getBodies(), battlecruiser.getBezierSampledPoints(), battlecruiser.getPosition());
 
             // Pass #10: Draw minimap FBO as overlay
             reset_opengl_state();

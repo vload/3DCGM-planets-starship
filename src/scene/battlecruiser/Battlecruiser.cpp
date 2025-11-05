@@ -418,6 +418,13 @@ void Battlecruiser::imGuiControl() {
     ImGui::DragFloat("Thruster intensity", &thrusterIntensity, 0.01f);
 }
 
+std::vector<glm::vec3> Battlecruiser::getBezierSampledPoints() {
+    if (isFollowingPath) {
+        return bezierPath.getBezierSampledPoints();
+    }
+    return {};
+}
+
 
 Battlecruiser::~Battlecruiser() {
     for (const MeshGL &m: meshGLs) {

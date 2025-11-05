@@ -25,7 +25,7 @@ public:
     ~Minimap();
 
     void initBuffers();
-    void draw(const std::vector<Body*>& bodies, glm::vec3 positionBattleCruiser);
+    void draw(const std::vector<Body*>& bodies, const std::vector<glm::vec3>& positionPoints, glm::vec3 positionBattleCruiser);
     void drawToScreen(int windowWidth, int windowHeight);
 
 private:
@@ -51,6 +51,21 @@ private:
                 body->getColor()
             });
         }
+        return objects;
+    }
+
+    static std::vector<Object> convertBezierPointsToObjects(const std::vector<glm::vec3>& positionPoints, float radius, glm::vec3 color) {
+        std::vector<Object> objects;
+        objects.reserve(positionPoints.size());
+
+        for (const auto& pos : positionPoints) {
+            objects.push_back({
+                pos,
+                radius,
+                color
+            });
+        }
+
         return objects;
     }
 };

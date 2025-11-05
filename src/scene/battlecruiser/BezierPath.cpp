@@ -278,3 +278,7 @@ glm::vec3 BezierPath::getCurrentPosition() const {
 glm::vec3 BezierPath::getCurrentVelocity() const {
     return velocity;
 }
+
+std::vector<glm::vec3> BezierPath::getBezierSampledPoints() {
+    return positionPoints;
+}

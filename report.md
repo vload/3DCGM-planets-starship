@@ -3,7 +3,7 @@
 
 Vlad Tudor Stefanescu - 5465877
 
-Alexandru ??? Dumitrache - ???
+Alexandru - Cristian Dumitrache - 5487773
 
 ## Introduction
 This report presents the features and implementation details of the 3D Computer Graphics and Modelling (3DCGM) assignment 2. The project focuses on creating a 3D scene conainting a solar system and a spaceship that can navigate through it.
@@ -89,3 +89,32 @@ The solar system is composed of spherical bodies of several types:
 ### MiniMap?
 
 ### Cameras?
+
+
+[//]: # (Part Dumi)
+
+## 1. Battlecruiser
+
+- AutoCad Model
+- Model fed into AutoCad to scale, set the origin position, and apply PBR textures
+- PBR textures with smart UV wrapping
+- Export model with materials (panels)
+- PBR based shading (diffuse model based on ..., specular model based on ...)
+
+### 1.1 Modelling
+### 1.2 Texturing and Scaling
+### 1.3 PBR Shading
+### 1.4 Shadow Mapping and Eclipse Ray-Tracing
+### 1.5 Environment Mapping Skybox
+### 1.6 Particles
+### 1.7 Light Particles
+### 1.8 Free Movement
+### 1.9 Bezier Constant Path Movement
+
+## 2. Cameras
+### 2.1 Free Camera
+### 2.2 Camera Following Battlecruiser
+### 2.3 Minimap
+
+## 3. Skybox
+

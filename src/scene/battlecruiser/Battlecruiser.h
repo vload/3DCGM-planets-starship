@@ -40,6 +40,8 @@ public:
 
     float getSpeed() const;
 
+    std::vector<glm::vec3> getBezierSampledPoints();
+
     virtual void imGuiControl();
 
 private:
