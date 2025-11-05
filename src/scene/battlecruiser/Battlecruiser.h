@@ -8,25 +8,34 @@
 #include <framework/window.h>
 
 #include "BezierPath.h"
+#include "../bodies/PlanetSystem.h"
 
 class Battlecruiser {
     Window &window;
     Config &config;
+
+    ShadowMap battlecruiserShadowMap1;
+    ShadowMap battlecruiserShadowMap2;
 
 public:
     Battlecruiser(Window &window, Config &config);
 
     ~Battlecruiser();
 
+    void draw_shadow(PlanetSystem& planetSystem);
+
     void draw(const glm::mat4 &view,
               const glm::mat4 &projection,
               const glm::vec3 &lightPos,
               const glm::vec3 &cameraPos,
-              unsigned int cubemapTexture);
+              unsigned int cubemapTexture,
+              PlanetSystem& planetSystem);
     void drawBezierPath(const glm::mat4 &view,
               const glm::mat4 &projection);
 
     void updatePosition(float deltaTime);
+
+    void updateLights(PlanetSystem& system);
 
     std::vector<glm::vec3> getRelativePositionThrusters();
 
@@ -69,6 +78,16 @@ private:
     Shader thrusterShader;
 
     std::vector<MeshGL> meshGLs;
+
+    // light params
+    glm::mat4 light_view_matrix1;
+    glm::vec3 light_position1;
+    glm::mat4 light_projection_matrix1;
+    glm::mat4 light_view_matrix2;
+    glm::vec3 light_position2;
+    glm::mat4 light_projection_matrix2;
+
+    void draw_shadowmap(PlanetSystem& planetSystem, ShadowMap& shadowMap, glm::mat4& lightViewMatrix, glm::mat4& lightProjectionMatrix);
 
     static void loadTexture(const char *filename, GLuint &texture);
     void updateVelocityPositionFreeMovement(float deltaTime);

@@ -29,8 +29,11 @@ void Battlecruiser::loadTexture(const char *filename, GLuint &texture) {
     stbi_image_free(data);
 }
 
-
-Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
+Battlecruiser::Battlecruiser(Window& window, Config& config)
+    : window(window),
+      config(config),
+      battlecruiserShadowMap1(config),
+      battlecruiserShadowMap2(config) {
     const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser/Untitled.obj");
 
     for (const auto &mesh: meshes) {
@@ -159,10 +162,12 @@ void Battlecruiser::draw(const glm::mat4 &view,
                          const glm::mat4 &projection,
                          const glm::vec3 &lightPos,
                          const glm::vec3 &cameraPos,
-                         unsigned int cubemapTexture) {
+                         unsigned int cubemapTexture,
+                         PlanetSystem& planetSystem) {
 
     // TODO Need to add light correction
-    glm::vec3 lightColor = glm::vec3(4.0f);
+    // glm::vec3 lightColor = glm::vec3(4.0f);
+    const float exposure_multiplier = 4.0f;
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -174,9 +179,53 @@ void Battlecruiser::draw(const glm::mat4 &view,
                        glm::value_ptr(getModelMatrix()));
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
-    glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+    // glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
+    // glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
     glUniform3fv(mainShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+
+    // Set eclipse and shadow mapping settings and light information
+    auto [enable_eclipse, enable_shadowmapping,
+          enable_PCF, PCF_kernel_radius, exposure, gamma] =
+        planetSystem.getEclipseShadomappingPCFKernelExposureGammaSettings();
+    glUniform1i(mainShader.getUniformLocation("enable_eclipse"), enable_eclipse);
+    glUniform1i(mainShader.getUniformLocation("enable_shadowmapping"), enable_shadowmapping);
+    glUniform1i(mainShader.getUniformLocation("enable_PCF"), enable_PCF);
+    glUniform1i(mainShader.getUniformLocation("PCF_kernel_radius"), PCF_kernel_radius);
+    glUniform1f(mainShader.getUniformLocation("exposure"), exposure * exposure_multiplier);
+    auto [bodies_pos_rad, sun_pos_rads, sun_col_ints] =
+        planetSystem.getBodiesAndSunsInfoForShader();
+    glUniform1i(mainShader.getUniformLocation("num_bodies"), static_cast<int>(bodies_pos_rad.size()));
+    glUniform4fv(mainShader.getUniformLocation("bodyPosRadii"), static_cast<GLsizei>(bodies_pos_rad.size()),
+                 glm::value_ptr(bodies_pos_rad[0]));
+    glUniform4fv(mainShader.getUniformLocation("sunPosRadii"), static_cast<GLsizei>(sun_pos_rads.size()),
+                 glm::value_ptr(sun_pos_rads[0]));
+    glUniform4fv(mainShader.getUniformLocation("sunColInt"),
+                 static_cast<GLsizei>(sun_col_ints.size()),
+                 glm::value_ptr(sun_col_ints[0]));
+
+    glUniform1i(mainShader.getUniformLocation("binary_system"),
+                config.is_binary_system ? 1 : 0);
+
+    glUniform3fv(mainShader.getUniformLocation("center"), 1,
+                 glm::value_ptr(position));
+    glUniform1i(mainShader.getUniformLocation("only_depth"), 0);
+    glUniformMatrix4fv(mainShader.getUniformLocation("lightViewMatrix1"), 1,
+                       GL_FALSE, glm::value_ptr(light_view_matrix1));
+    glUniformMatrix4fv(mainShader.getUniformLocation("lightProjectionMatrix1"),
+                       1, GL_FALSE, glm::value_ptr(light_projection_matrix1));
+    glUniform3fv(mainShader.getUniformLocation("lightPosition1"), 1,
+                 glm::value_ptr(light_position1));
+    glUniformMatrix4fv(mainShader.getUniformLocation("lightViewMatrix2"), 1,
+                       GL_FALSE, glm::value_ptr(light_view_matrix2));
+    glUniformMatrix4fv(mainShader.getUniformLocation("lightProjectionMatrix2"), 1,
+                       GL_FALSE, glm::value_ptr(light_projection_matrix2));
+    glUniform3fv(mainShader.getUniformLocation("lightPosition2"), 1,
+                 glm::value_ptr(light_position2));
+
+    battlecruiserShadowMap1.bind_for_reading(GL_TEXTURE5);
+    glUniform1i(mainShader.getUniformLocation("shadowMap1"), 5);
+    battlecruiserShadowMap2.bind_for_reading(GL_TEXTURE6);
+    glUniform1i(mainShader.getUniformLocation("shadowMap2"), 6);
 
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
@@ -424,3 +473,79 @@ Battlecruiser::~Battlecruiser() {
     }
 }
 
+void Battlecruiser::draw_shadow(PlanetSystem &planetSystem) {
+    draw_shadowmap(planetSystem, battlecruiserShadowMap1, light_view_matrix1, light_projection_matrix1);
+    draw_shadowmap(planetSystem, battlecruiserShadowMap2, light_view_matrix2, light_projection_matrix2);
+}
+
+void Battlecruiser::draw_shadowmap(PlanetSystem& planetSystem,
+                                   ShadowMap& shadowMap,
+                                   glm::mat4& lightViewMatrix,
+                                   glm::mat4& lightProjectionMatrix) {
+    glDisable(GL_CULL_FACE);
+    auto [bodies_pos_rad, sun_pos_rads, sun_col_ints] = planetSystem.getBodiesAndSunsInfoForShader();
+    mainShader.bind();
+    glUniform1i(mainShader.getUniformLocation("binary_system"),
+                config.is_binary_system);
+    glUniform4fv(mainShader.getUniformLocation("sunPosRadii"),
+                 (GLint)sun_pos_rads.size(), glm::value_ptr(sun_pos_rads[0]));
+    glUniform4fv(mainShader.getUniformLocation("sunColInt"),
+                 (GLint)sun_col_ints.size(), glm::value_ptr(sun_col_ints[0]));
+
+    glUniform1i(mainShader.getUniformLocation("num_bodies"),
+                (GLint)bodies_pos_rad.size());
+    glUniform4fv(mainShader.getUniformLocation("bodyPosRadii"),
+                 (GLint)bodies_pos_rad.size(),
+                 glm::value_ptr(bodies_pos_rad[0]));
+
+    glUniformMatrix4fv(mainShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(getModelMatrix()));
+    glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE,
+                       glm::value_ptr(lightViewMatrix));
+    glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE,
+                       glm::value_ptr(lightProjectionMatrix));
+    glUniform1i(mainShader.getUniformLocation("only_depth"), 1);
+    
+    shadowMap.bind_for_writing();
+    // more uniforms
+    for (const auto& m : meshGLs) {
+        if (m.materialName != "Panel-10") {
+            glBindVertexArray(m.vao);
+            
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount),
+                           GL_UNSIGNED_INT, nullptr);
+        }
+    }
+}
+
+void Battlecruiser::updateLights(PlanetSystem &system) {
+    auto [p_light_position1, p_light_position2] =
+        system.getBinaryStarPositions();
+
+    float radius = 3.0f;
+
+    // Update light matrices for shadow mapping light 1
+    light_position1 = p_light_position1;
+    light_view_matrix1 =
+        glm::lookAt(light_position1, position, glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 centerLS =
+        glm::vec3(light_view_matrix1 * glm::vec4(position, 1.0f));
+    float near_plane = std::max(0.1f, -centerLS.z - radius * 2.0f);
+    float far_plane = -centerLS.z + radius * 2.0f;
+
+    light_projection_matrix1 =
+        glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f, radius * 2.0f,
+                   near_plane, far_plane);
+
+    // Update light matrices for shadow mapping light 2
+    light_position2 = p_light_position2;
+    light_view_matrix2 =
+        glm::lookAt(light_position2, position, glm::vec3(0.0f, 1.0f, 0.0f));
+    centerLS = glm::vec3(light_view_matrix2 * glm::vec4(position, 1.0f));
+    near_plane = std::max(0.1f, -centerLS.z - radius * 2.0f);
+    far_plane = -centerLS.z + radius * 2.0f;
+
+    light_projection_matrix2 =
+        glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f, radius * 2.0f,
+                   near_plane, far_plane);
+}

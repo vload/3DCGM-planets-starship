@@ -86,7 +86,7 @@ int main(int argc, char** argv) {
         config_path = argv[1];
     }
 
-    // config_path = RESOURCE_ROOT "configurations/geodesic_resolution_3.toml";
+    // config_path = RESOURCE_ROOT "configurations/binary.toml";
 
     //// -------- Setup:
     /// ---- Load configuration
@@ -191,6 +191,7 @@ int main(int argc, char** argv) {
 
         /// -- Update bodies
         planet_system.update(time_warp * (float)delta_time);
+        battlecruiser.updateLights(planet_system);
 
         /// ---- ImGui
         // window.update_input already called ImGui::NewFrame()
@@ -231,6 +232,10 @@ int main(int argc, char** argv) {
             reset_opengl_state();
             skybox.draw(active_camera->get_view_matrix(), projection_matrix);
 
+            /// -- Pass #2: Render battlecruiser shadows
+            reset_opengl_state();
+            battlecruiser.draw_shadow(planet_system);
+
             /// -- Pass #2 and #3: Shadow-map per body(that needs it) and Render
             /// Bodies
             reset_opengl_state();
@@ -244,7 +249,7 @@ int main(int argc, char** argv) {
             battlecruiser.draw(
                 active_camera->get_view_matrix(), projection_matrix,
                 glm::vec3(0.0f, 0.0f, 0.0f), active_camera->get_position(),
-                skybox.getCubemapTexture());
+                skybox.getCubemapTexture(), planet_system);
 
             /// -- Pass #6: Render battlecruiser Bezier Path
             reset_opengl_state();

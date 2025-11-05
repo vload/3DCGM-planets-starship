@@ -157,12 +157,18 @@ class PlanetSystem {
         }
     }
     void update(float delta_time) {
-        if (!is_binary_system) {
+        auto [binary_star_pos1, binary_star_pos2] = getBinaryStarPositions();
+        for (Body* body : bodies) {
+            body->update(delta_time, binary_star_pos1, binary_star_pos2);
+        }
+    }
+
+    std::pair<glm::vec3, glm::vec3> getBinaryStarPositions() const {
+         if (!is_binary_system) {
             for (Body* body : bodies) {
                 // assume sun is bodies[0]
-                body->update((float)delta_time, bodies[0]->getPosition());
+                return {bodies[0]->getPosition(), glm::vec3(0.0f)};
             }
-            return;
         }
 
         // max two stars are light sources
@@ -173,23 +179,22 @@ class PlanetSystem {
             if (star != nullptr) {
                 star_pos.push_back(pos);
             }
+            if(star_pos.size() >=2) break;
         }
 
-        if (star_pos.size() != 2)
+        if (star_pos.size() < 2)
             throw std::runtime_error(
-                "Binary system enabled but number of stars != 2");
-
-        for (Body* body : bodies) {
-            // add both stars as light sources
-            body->update((float)delta_time, star_pos[0], star_pos[1]);
-        }
+                "Binary system enabled but number of stars < 2");
+        
+        return {star_pos[0], star_pos[1]};
     }
 
-    void draw(const glm::mat4& view_matrix, const glm::mat4& projection_matrix,
-              const glm::vec3& camera_position, float screen_height,
-              void (*reset_opengl_state)()) {
-        float time = (float)glfwGetTime();
+    auto getEclipseShadomappingPCFKernelExposureGammaSettings() const {
+        return std::make_tuple(enable_eclipse, enable_shadowmapping,
+                               enable_PCF, PCF_kernel_radius, exposure, gamma);
+    }
 
+    auto getBodiesAndSunsInfoForShader() const {
         std::vector<glm::vec4> bodies_pos_rad;
         std::vector<glm::vec4> sun_pos_rads;
         std::vector<glm::vec4> sun_col_ints;
@@ -204,13 +209,13 @@ class PlanetSystem {
             Star* star = dynamic_cast<Star*>(body);
             if (star != nullptr) {
                 // only first stars are light sources
-                if(sun_pos_rads.size() < (is_binary_system ? 2 : 1)) {
+                if (sun_pos_rads.size() < (is_binary_system ? 2 : 1)) {
                     sun_pos_rads.push_back(glm::vec4(pos, radius));
-                    if(use_star_color){
+                    if (use_star_color) {
                         sun_col_ints.push_back(star->getStarColorIntensity());
-                    }
-                    else{
-                        sun_col_ints.push_back(glm::vec4(glm::vec3(1.0), star->getStarColorIntensity().w));
+                    } else {
+                        sun_col_ints.push_back(glm::vec4(
+                            glm::vec3(1.0), star->getStarColorIntensity().w));
                     }
                 }
             }
@@ -218,6 +223,17 @@ class PlanetSystem {
             bodies_pos_rad.push_back(glm::vec4(pos, radius));
         }
 
+        return std::make_tuple(bodies_pos_rad, sun_pos_rads, sun_col_ints);
+    }
+
+    void draw(const glm::mat4& view_matrix, const glm::mat4& projection_matrix,
+              const glm::vec3& camera_position, float screen_height,
+              void (*reset_opengl_state)()){
+                
+        float time = (float)glfwGetTime();
+
+        auto [bodies_pos_rad, sun_pos_rads,
+              sun_col_ints] = getBodiesAndSunsInfoForShader();
         // shadow map pass
         for (Body* body : bodies) {
             if (dynamic_cast<NullBody*>(body) != nullptr) {
