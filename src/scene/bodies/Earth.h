@@ -27,6 +27,8 @@ class Earth : public Body {
         waterKs = config.earth_params.waterKs;
         waterShininess = config.earth_params.waterShininess;
         ocean_normal_amplitude = config.earth_params.ocean_normal_amplitude;
+
+        color = glm::vec3(0.0f, 1.0f, 0.0f);
     }
 
     void setup() {

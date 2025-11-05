@@ -311,4 +311,8 @@ class PlanetSystem {
             body->draw(view_matrix, projection_matrix, camera_position);
         }
     }
+
+    std::vector<Body*> getBodies() {
+        return bodies;
+    }
 };

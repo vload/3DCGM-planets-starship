@@ -391,6 +391,9 @@ float Battlecruiser::getSpeed() const {
     return glm::length(velocity);
 }
 
+glm::vec3 Battlecruiser::getPosition() const {
+    return position;
+}
 
 glm::vec3 Battlecruiser::getDirectionVector() {
     return glm::normalize(velocity);

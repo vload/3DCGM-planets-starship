@@ -36,6 +36,8 @@ public:
 
     glm::vec3 getUpVector();
 
+    glm::vec3 getPosition() const;
+
     float getSpeed() const;
 
     virtual void imGuiControl();

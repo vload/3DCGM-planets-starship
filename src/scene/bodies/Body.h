@@ -43,6 +43,7 @@ class Body {
 
     glm::vec3 getPosition() const { return position; }
     float getRadius() const { return radius; }
+    glm::vec3 getColor() const { return color; }
 
     virtual void setup() {
         try {

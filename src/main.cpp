@@ -5,6 +5,8 @@
 // stuff...
 #include <framework/disable_all_warnings.h>
 #include <scene/battlecruiser/ParticleSystem.h>
+
+#include "scene/views/Minimap.h"
 DISABLE_WARNINGS_PUSH()
 #include <glad/glad.h>
 // Include glad before glfw3
@@ -150,6 +152,9 @@ int main(int argc, char** argv) {
     /// -- Battlecruiser Particles
     ParticleSystem particles(battlecruiser);
 
+    /// -- Minimap
+    Minimap minimap;
+
     window.registerKeyCallback(
         [&](int key, int scancode, int action, int mods) {
             if (action == GLFW_PRESS) {
@@ -255,6 +260,14 @@ int main(int argc, char** argv) {
             reset_opengl_state();
             particles.draw_stage(active_camera->get_view_matrix(),
                                  projection_matrix);
+
+            // Pass #9: Render minimap scene into its FBO
+            reset_opengl_state();
+            minimap.draw(planet_system.getBodies(), battlecruiser.getPosition());
+
+            // Pass #10: Draw minimap FBO as overlay
+            reset_opengl_state();
+            minimap.drawToScreen(WIDTH_WINDOW, HEIGHT_WINDOW);
         }
 
         //// ---- Swap buffers
