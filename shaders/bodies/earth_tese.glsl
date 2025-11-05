@@ -154,7 +154,13 @@ float fractalNoise(vec3 p) {
 }
 
 float get_height(vec3 sphere_pos) {
-    return fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+    float temp = fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+    temp *= 2.0;
+    float abstemp = abs(temp);
+    float signtemp = temp < 0.0 ? -1.0 : 1.0;
+    temp = signtemp * pow(abstemp, 1.5); // sharpen
+
+    return temp; // exaggerate features
 }
 
 void main()

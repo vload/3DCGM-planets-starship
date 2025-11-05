@@ -4,7 +4,6 @@
 
 class Earth : public Body {
    public:
-    // TODO: load earth params from config instead of insane imgui
     Earth(Config& config, const glm::vec3& pos, float r, GPUMesh& icosahedron_mesh)
         : Body(config, pos, r, icosahedron_mesh) {
         // Initialize earth parameters from config if available
@@ -27,7 +26,7 @@ class Earth : public Body {
         waterKd = config.earth_params.waterKd;
         waterKs = config.earth_params.waterKs;
         waterShininess = config.earth_params.waterShininess;
-        ocean_normal_gradient_multiplier = config.earth_params.ocean_normal_gradient_multiplier;
+        ocean_normal_amplitude = config.earth_params.ocean_normal_amplitude;
     }
 
     void setup() {
@@ -107,8 +106,8 @@ class Earth : public Body {
         glUniform1f(shader.getUniformLocation("waterKd"), waterKd);
         glUniform1f(shader.getUniformLocation("waterKs"), waterKs);
         glUniform1f(shader.getUniformLocation("waterShininess"), waterShininess);
-        glUniform1f(shader.getUniformLocation("ocean_normal_gradient_multiplier"),
-                    ocean_normal_gradient_multiplier);
+        glUniform1f(shader.getUniformLocation("ocean_normal_amplitude"),
+                    ocean_normal_amplitude);
         glUniform1f(shader.getUniformLocation("surface_ka"),
                     surface_ka);
         glUniform1f(shader.getUniformLocation("surface_kd"),
@@ -136,5 +135,5 @@ class Earth : public Body {
     float waterKd = 0.9f;
     float waterKs = 0.9f;
     float waterShininess = 128.0f;
-    float ocean_normal_gradient_multiplier = 0.01f;
+    float ocean_normal_amplitude = 0.01f;
 };
