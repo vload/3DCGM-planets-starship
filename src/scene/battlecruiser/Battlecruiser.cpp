@@ -15,7 +15,7 @@ void Battlecruiser::loadTexture(const char *filename, GLuint &texture) {
     unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
 
     if (!data)
-        std::cerr << "Failed to load texture" << std::endl;
+        std::cerr << "Failed to load texture: " << filename << std::endl;
 
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
@@ -67,14 +67,66 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
         m.indexCount = mesh.triangles.size() * 3;
         m.materialName = mesh.material.name;
 
-        // if (m.materialName == "Material-Cannon") {
-        //
-        // }
-
-        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-albedo.png", m.baseMap);
-        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-normal-ogl.png", m.normalMap);
-        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-metallic.png", m.metallicMap);
-        loadTexture(RESOURCE_ROOT "resources/BattleCruiser/spaceship-panels-bl/spaceship-panels1-roughness.png", m.roughnessMap);
+        if (m.materialName == "Panel-0") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-normal-ogl.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-1") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-2") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-3") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-4") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-5") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-6") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-7") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-8") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-9") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_roughness.png", m.roughnessMap);
+        }
 
         glBindVertexArray(0);
 
@@ -112,7 +164,8 @@ void Battlecruiser::draw(const glm::mat4 &view,
         4.5f
     };
 
-    glm::vec3 lightColor = glm::vec3(1.0f);
+    // TODO Need to add light correction
+    glm::vec3 lightColor = glm::vec3(5.0f);
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -274,6 +327,11 @@ glm::mat4 Battlecruiser::getModelMatrix() {
 
     return translationMat * rotationMat * modelMatrix;
 }
+
+float Battlecruiser::getSpeed() const {
+    return glm::length(velocity);
+}
+
 
 glm::vec3 Battlecruiser::getDirectionVector() {
     return glm::normalize(velocity);

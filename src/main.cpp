@@ -202,6 +202,9 @@ int main() {
 
             /// -- ImGui Battlecruiser controls
             battlecruiser.imGuiControl();
+
+            /// -- ImGui Battlecruiser Particles controls
+            particles.imGuiControl();
         }
 
         ImGui::End();
@@ -237,8 +240,8 @@ int main() {
             battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
 
             /// -- Pass #7: Render battlecruiser Particles
-            // reset_opengl_state();
-            // particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
+            reset_opengl_state();
+            particles.draw_stage(active_camera->get_view_matrix(), projection_matrix);
         }
 
         //// ---- Swap buffers

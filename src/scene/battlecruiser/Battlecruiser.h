@@ -45,6 +45,8 @@ public:
 
     glm::vec3 getUpVector();
 
+    float getSpeed() const;
+
     virtual void imGuiControl();
 
 private:
@@ -60,10 +62,10 @@ private:
     glm::mat4 modelMatrix = glm::mat4(1.0f);
 
     std::vector<glm::vec3> relativePositionThrusters = {
-        glm::vec3(0.0f, -0.025f, -1.1f),
-        glm::vec3(0.0f, 0.425f, -1.1f),
-        glm::vec3(0.225f, 0.2f, -1.1f),
-        glm::vec3(-0.225f, 0.2f, -1.1f)
+        glm::vec3(0.20f, -0.145f, -2.04f),
+        glm::vec3(-0.022f, 0.077f, -2.04f),
+        glm::vec3(-0.247f, -0.147f, -2.04f),
+        glm::vec3(-0.022f, -0.372f, -2.04f),
     };
 
     Shader mainShader;
