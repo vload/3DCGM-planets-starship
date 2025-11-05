@@ -8,12 +8,9 @@ build/
 Build/
 bin/
 Bin/
-obj/
-Obj/
 out/
 Out/
 *.o
-*.obj
 *.lo
 *.la
 *.al
