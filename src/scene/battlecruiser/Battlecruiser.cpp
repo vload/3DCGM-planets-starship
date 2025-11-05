@@ -8,10 +8,30 @@
 #include <iostream>
 #include <glm/gtx/quaternion.hpp>
 #include <imgui/imgui.h>
+#include <stb/stb_image.h>
+
+void Battlecruiser::loadTexture(const char *filename, GLuint &texture) {
+    int width, height, nrChannels;
+    unsigned char* data = stbi_load(filename, &width, &height, &nrChannels, 0);
+
+    if (!data)
+        std::cerr << "Failed to load texture: " << filename << std::endl;
+
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    stbi_image_free(data);
+}
 
 
 Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), config(config) {
-    const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser.obj");
+    const std::vector<Mesh> meshes = loadMesh(RESOURCE_ROOT "resources/BattleCruiser/Untitled.obj");
 
     for (const auto &mesh: meshes) {
         MeshGL m;
@@ -41,14 +61,74 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
         glEnableVertexAttribArray(2); //tex Coordinates
         glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, texCoord));
 
-        glBindVertexArray(0);
+        glEnableVertexAttribArray(3); //tangent for TBN
+        glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void *) offsetof(Vertex, tangent));
 
         m.indexCount = mesh.triangles.size() * 3;
         m.materialName = mesh.material.name;
 
-        std::cout << "Mesh detected: " << m.materialName << std::endl;
-        std::cout << "Mesh vertices: " << mesh.vertices.size()
-                << " triangles: " << mesh.triangles.size() << std::endl;
+        if (m.materialName == "Panel-0") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-normal-ogl.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-0/spaceship-panels1-roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-1") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-1/TCom_Scifi_Panel_4K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-2") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-2/TCom_SciFiPanels_02_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-3") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-3/TCom_SciFiPanels06_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-4") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-4/TCom_Scifi_Panel8_New_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-5") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-5/TCom_ScratchedSteel2_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-6") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-6/TCom_SciFiPanels07_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-7") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-7/TCom_SciFiPanels09_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-8") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-8/TCom_SciFiPanels03_1K_roughness.png", m.roughnessMap);
+        }
+        if (m.materialName == "Panel-9") {
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_albedo.png", m.baseMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_normal.png", m.normalMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_metallic.png", m.metallicMap);
+            loadTexture(RESOURCE_ROOT "resources/BattleCruiser/panel-9/TCom_SciFiPanels_01_1K_roughness.png", m.roughnessMap);
+        }
+
+        glBindVertexArray(0);
 
         meshGLs.push_back(m);
     }
@@ -63,9 +143,15 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
     reflectiveShader =
             ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                      "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/glass_shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
                       "shaders/battlecruiser/glass_shader_frag.glsl")
+            .build();
+
+    thrusterShader =
+        ShaderBuilder()
+            .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/shader_vert.glsl")
+            .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/thruster_frag.glsl")
             .build();
 }
 
@@ -74,15 +160,9 @@ void Battlecruiser::draw(const glm::mat4 &view,
                          const glm::vec3 &lightPos,
                          const glm::vec3 &cameraPos,
                          unsigned int cubemapTexture) {
-    // --- Setup once per frame ---
-    LightParticle thruster = {
-        glm::vec3(0.0f, 4.0f, -50.0f),
-        glm::vec3(0.0f, 0.0f, -1.0f),
-        glm::vec3(1.0f, 0.5f, 0.1f),
-        glm::radians(80.0f),
-        45.0f,
-        4.5f
-    };
+
+    // TODO Need to add light correction
+    glm::vec3 lightColor = glm::vec3(4.0f);
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -95,42 +175,98 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
-
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(thruster.pos));
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightDir"), 1, glm::value_ptr(thruster.dir));
-    glUniform3fv(mainShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(thruster.color));
-    glUniform1f(mainShader.getUniformLocation("thrusterThresholdLight"), thruster.thresholdLight);
-    glUniform1f(mainShader.getUniformLocation("thrusterLightIntensity"), thruster.intensity);
-    glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
+    glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
+    glUniform3fv(mainShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
-        if (m.materialName == "Steel_-_Satin") {
+        if (m.materialName != "Panel-10") {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m.baseMap);
+            glUniform1i(mainShader.getUniformLocation("textureBase"), 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, m.normalMap);
+            glUniform1i(mainShader.getUniformLocation("textureNormal"), 1);
+
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, m.metallicMap);
+            glUniform1i(mainShader.getUniformLocation("textureMetallic"), 2);
+
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, m.roughnessMap);
+            glUniform1i(mainShader.getUniformLocation("textureRoughness"), 3);
+
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
         }
     }
 
-    // --- Pass 2: reflective meshes ---
-    // Skip depth testing to avoid artifacts inside the windows
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
 
+    // --- Pass 2: reflective meshes ---
     reflectiveShader.bind();
-
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_CUBE_MAP, cubemapTexture);
-    glUniform1i(reflectiveShader.getUniformLocation("environmentMap"), 0);
-    glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
-
-    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(getModelMatrix()));
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(getModelMatrix()));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
     for (const auto &m: meshGLs) {
-        if (m.materialName == "Window-Cabin-Material") {
+        if (m.materialName == "Panel-10") {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, cubemapTexture);
+            glUniform1i(mainShader.getUniformLocation("environmentMap"), 0);
+
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
         }
+    }
+
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+
+    // --- Pass 3: Thruster Light ---
+    static std::default_random_engine rng(std::random_device{}());
+    static std::uniform_real_distribution<float> flickerDist(-0.01f, 0.01f);
+
+    std::uniform_int_distribution<int> distR(233.0f, 255.f);
+    std::uniform_int_distribution<int> distG(165.0f, 255.f);
+
+    glm::vec3 lightThrusterPos = glm::vec3(-0.02f, -0.147f, -2.2f);
+    glm::vec3 lightThrusterColor = glm::vec3(static_cast<unsigned char>(distR(rng)), static_cast<unsigned char>(distG(rng)), 0.0f);
+    glm::vec3 thrusterDir = getDirectionVector();
+
+    float randomOffset = flickerDist(rng);
+    float flickeringRadius = thrusterRadius + randomOffset;
+
+    thrusterShader.bind();
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(getModelMatrix()));
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(thrusterShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(lightThrusterPos));
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(lightThrusterColor));
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterDir"), 1, glm::value_ptr(thrusterDir));
+
+    glUniform1f(thrusterShader.getUniformLocation("radius"), radius);
+    glUniform1i(thrusterShader.getUniformLocation("nrLights"), nrLights);
+    glUniform1f(thrusterShader.getUniformLocation("thrusterRadius"), flickeringRadius);
+    glUniform1f(thrusterShader.getUniformLocation("thrusterIntensity"), thrusterIntensity);
+
+
+    for (const auto &m: meshGLs) {
+        glBindVertexArray(m.vao);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
     }
 }
 
@@ -251,6 +387,11 @@ glm::mat4 Battlecruiser::getModelMatrix() {
     return translationMat * rotationMat * modelMatrix;
 }
 
+float Battlecruiser::getSpeed() const {
+    return glm::length(velocity);
+}
+
+
 glm::vec3 Battlecruiser::getDirectionVector() {
     return glm::normalize(velocity);
 }
@@ -265,6 +406,13 @@ void Battlecruiser::imGuiControl() {
     if (ImGui::Checkbox("Follow Bezier Path", &isFollowingPath)) {
         bezierPath.initializeBezierPathMovement(config.battlecruiser_path_info, position, velocity);
     }
+
+    ImGui::Separator();
+    ImGui::Text("Battlecruiser Light Panel");
+    ImGui::DragFloat("Radius", &radius, 0.01f);
+    ImGui::DragInt("Nr Lights", &nrLights, 1);
+    ImGui::DragFloat("Thruster radius", &thrusterRadius, 0.01f);
+    ImGui::DragFloat("Thruster intensity", &thrusterIntensity, 0.01f);
 }
 
 

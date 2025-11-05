@@ -15,7 +15,8 @@ DISABLE_WARNINGS_POP()
 struct Vertex {
 	glm::vec3 position;
 	glm::vec3 normal;
-	glm::vec2 texCoord; // Texture coordinate
+	glm::vec2 texCoord;
+	glm::vec3 tangent;
 
 	[[nodiscard]] constexpr bool operator==(const Vertex&) const noexcept = default;
 };
@@ -50,6 +51,11 @@ struct MeshGL {
 	GLuint ibo = 0;
 	size_t indexCount = 0;
 	std::string materialName;
+
+	GLuint baseMap;
+	GLuint normalMap;
+	GLuint metallicMap;
+	GLuint roughnessMap;
 };
 
 struct LoadMeshSettings {

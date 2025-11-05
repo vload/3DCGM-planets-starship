@@ -84,6 +84,9 @@ class Skybox {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(0);
+
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
     }
 
     unsigned int getCubemapTexture() { return _cubemapTexture; }

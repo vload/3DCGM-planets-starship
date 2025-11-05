@@ -13,7 +13,7 @@ Obj/
 out/
 Out/
 *.o
-*.obj
+# *.obj
 *.lo
 *.la
 *.al

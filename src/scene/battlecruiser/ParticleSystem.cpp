@@ -3,6 +3,7 @@
 #include <cstdlib>
 #include <framework/shader.h>
 #include <random>
+#include <imgui/imgui.h>
 
 ParticleSystem::ParticleSystem(Battlecruiser &battlecruiser, int maxParticles)
     : battlecruiser(battlecruiser),
@@ -109,7 +110,7 @@ void ParticleSystem::spawn_per_location(const glm::vec3 &origin) {
     float phi = glm::two_pi<float>() * dist01(rng);
     glm::vec3 dir(sinTheta * cos(phi), sinTheta * sin(phi), cosTheta);
 
-    glm::mat3 rotation(battlecruiser.getModelMatrix());
+    glm::mat3 rotation = glm::mat3_cast(glm::quat_cast(battlecruiser.getModelMatrix()));
     glm::vec3 worldDir = rotation * dir;
 
     // --- velocity with jitter ---
@@ -156,7 +157,7 @@ void ParticleSystem::update_stage(float dt, const glm::vec3 &camPos) {
             p.life -= dt;
             if (p.life > 0.0f) {
                 // World-space motion
-                p.speed += p.speed * dt * 0.5f;
+                //p.speed += p.speed * dt * 0.5f;
                 p.pos += p.speed * dt;
 
                 // Camera distance directly in world space
@@ -198,7 +199,10 @@ void ParticleSystem::draw_stage(const glm::mat4 &view, const glm::mat4 &projecti
     glm::vec3 camRight(view[0][0], view[1][0], view[2][0]);
     glm::vec3 camUp(view[0][1], view[1][1], view[2][1]);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
+    glDepthFunc(GL_LEQUAL);
 
     shader.bind();
     glUniformMatrix4fv(shader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(battlecruiser.getModelMatrix()));
@@ -230,6 +234,24 @@ void ParticleSystem::draw_stage(const glm::mat4 &view, const glm::mat4 &projecti
 }
 
 void ParticleSystem::update(const glm::vec3 &camPos, const float dt) {
+    float battlecruiserSpeed = battlecruiser.getSpeed();
+
+    size = glm::mix(0.02f, 0.04f, battlecruiserSpeed / 3);
+    sizeDeviation = glm::mix(0.03f, 0.05f, battlecruiserSpeed / 3);
+    spawnRadius = glm::mix(0.05f, 0.1f, battlecruiserSpeed / 3);
+    coneAngle = glm::mix(8.0f, 20.0f, battlecruiserSpeed / 3);
+    velocitySpread = glm::mix(0.05f, 0.4f, battlecruiserSpeed / 3);
+
     spawn_stage(dt);
     update_stage(dt, camPos);
+}
+
+void ParticleSystem::imGuiControl() {
+    // ImGui::Separator();
+    // ImGui::Text("Particle Control");
+    // ImGui::DragFloat("Size", &size,  0.01f);
+    // ImGui::DragFloat("Size Deviation", &sizeDeviation,  0.01f);
+    // ImGui::DragFloat("Spawn Radius", &spawnRadius,  0.05f);
+    // ImGui::DragFloat("Cone Angle", &coneAngle,  1.0f);
+    // ImGui::DragFloat("Velocity Spread", &velocitySpread,  0.05f);
 }

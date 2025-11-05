@@ -1,9 +1,7 @@
 #version 410 core
 
-// Output for on-screen color.
 out vec4 outColor;
 
-// Interpolated output data from vertex shader.
 in vec3 fragPos; // World-space position
 in vec3 fragNormal; // World-space normal
 

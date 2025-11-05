@@ -9,15 +9,6 @@
 
 #include "BezierPath.h"
 
-struct LightParticle {
-    glm::vec3 pos;
-    glm::vec3 dir;
-    glm::vec3 color;
-    float angle;
-    float thresholdLight;
-    float intensity;
-};
-
 class Battlecruiser {
     Window &window;
     Config &config;
@@ -45,6 +36,8 @@ public:
 
     glm::vec3 getUpVector();
 
+    float getSpeed() const;
+
     virtual void imGuiControl();
 
 private:
@@ -57,21 +50,27 @@ private:
 
     glm::vec3 upVector = glm::vec3(0.0f, 1.0f, 0.0f);
 
-    glm::mat4 modelMatrix = glm::scale(glm::mat4(1.0f), glm::vec3(0.05f));
+    glm::mat4 modelMatrix = glm::mat4(1.0f);
 
     std::vector<glm::vec3> relativePositionThrusters = {
-        glm::vec3(0.0f, -0.5f, -22.0f),
-        glm::vec3(0.0f, 8.5f, -22.0f),
-        glm::vec3(4.5f, 4.0f, -22.0f),
-        glm::vec3(-4.5f, 4.0f, -22.0f)
+        glm::vec3(0.20f, -0.145f, -2.04f),
+        glm::vec3(-0.022f, 0.077f, -2.04f),
+        glm::vec3(-0.247f, -0.147f, -2.04f),
+        glm::vec3(-0.022f, -0.372f, -2.04f),
     };
+
+    float radius = 0.5f;
+    int nrLights = 10;
+    float thrusterRadius = 0.5f;
+    float thrusterIntensity = 1.0f;
 
     Shader mainShader;
     Shader reflectiveShader;
-    
+    Shader thrusterShader;
 
     std::vector<MeshGL> meshGLs;
 
+    static void loadTexture(const char *filename, GLuint &texture);
     void updateVelocityPositionFreeMovement(float deltaTime);
     void updateVelocityPositionPathMovement(float deltaTime);
 };
