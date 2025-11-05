@@ -30,6 +30,9 @@ uniform int binary_system = 0; // 0 = single star, 1 = binary star
 uniform vec4 sunPosRadii[128]; // xyz = position, w = radius of light sources
 uniform vec4 sunColInt[128]; // xyz = color, w = intensity
 
+uniform float default_ka = 0.1;
+uniform float default_kd = 1.0;
+
 // Projects point P0 onto a plane defined by point P1 and normal N
 vec3 projectPointOntoPlane(vec3 P0, vec3 P1, vec3 N) {
     vec3 v = P0 - P1;
@@ -56,6 +59,7 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
         // Sanity checks
         if (bodyRadius <= 0.0) continue;                        // skip degenerate bodies
         if (length(planet_center - bodyPos) < 0.01) continue;   // skip self-eclipse
+        if (length(sunPos - bodyPos) < 0.01) continue;          // skip if body is the light source
 
         vec3 toBody = bodyPos - fragPos;
         if(dot(toLight, toBody) <= 0.0) continue;               // body is behind fragment relative to light
@@ -104,16 +108,16 @@ void main()
     }
 
     vec3 normal = normalize(spherePosition); // approximate normal on sphere
-    vec3 ambient = 0.05 * body_color;
+    vec3 ambient = default_ka * body_color;
     vec3 hdrColor = ambient;
 
     vec3 lightDir1 = normalize(lightPosition1 - fragPosition);
-    vec3 diffuse1 = max(dot(normal, lightDir1), 0.0) * body_color;
+    vec3 diffuse1 = default_kd * max(dot(normal, lightDir1), 0.0) * body_color;
     hdrColor += diffuse1 * eclipseLightFactor1 * sunColInt[0].w * sunColInt[0].xyz * exposure;
 
     if(binary_system == 1) {
         vec3 lightDir2 = normalize(lightPosition2 - fragPosition);
-        vec3 diffuse2 = max(dot(normal, lightDir2), 0.0) * body_color;
+        vec3 diffuse2 = default_kd * max(dot(normal, lightDir2), 0.0) * body_color;
         hdrColor += diffuse2 * eclipseLightFactor2 * sunColInt[1].w * sunColInt[1].xyz * exposure;
     }
 

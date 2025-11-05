@@ -179,9 +179,15 @@ float coloreh(vec4 pos) {
 }
 
 uniform vec4 star_color_intensity;
+uniform int sun_texture_enabled;
 
 void main()
 {
+    if( sun_texture_enabled == 0 ) {
+        fragColor = vec4(star_color_intensity.rgb, 1.0);
+        return;
+    }
+
     float noise_val = coloreh(vec4(spherePosition * noise_scale, time * animation_speed));
 
     // interpolate colors based on noise value
