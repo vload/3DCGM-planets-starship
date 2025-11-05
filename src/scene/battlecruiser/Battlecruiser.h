@@ -9,15 +9,6 @@
 
 #include "BezierPath.h"
 
-struct LightParticle {
-    glm::vec3 pos;
-    glm::vec3 dir;
-    glm::vec3 color;
-    float angle;
-    float thresholdLight;
-    float intensity;
-};
-
 class Battlecruiser {
     Window &window;
     Config &config;
@@ -68,9 +59,14 @@ private:
         glm::vec3(-0.022f, -0.372f, -2.04f),
     };
 
+    float radius = 0.5f;
+    int nrLights = 10;
+    float thrusterRadius = 0.5f;
+    float thrusterIntensity = 1.0f;
+
     Shader mainShader;
     Shader reflectiveShader;
-    
+    Shader thrusterShader;
 
     std::vector<MeshGL> meshGLs;
 

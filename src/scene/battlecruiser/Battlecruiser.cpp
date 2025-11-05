@@ -147,6 +147,12 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
                       "shaders/battlecruiser/glass_shader_frag.glsl")
             .build();
+
+    thrusterShader =
+        ShaderBuilder()
+            .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT "shaders/battlecruiser/shader_vert.glsl")
+            .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT "shaders/battlecruiser/thruster_frag.glsl")
+            .build();
 }
 
 void Battlecruiser::draw(const glm::mat4 &view,
@@ -154,15 +160,6 @@ void Battlecruiser::draw(const glm::mat4 &view,
                          const glm::vec3 &lightPos,
                          const glm::vec3 &cameraPos,
                          unsigned int cubemapTexture) {
-    // --- Setup once per frame ---
-    LightParticle thruster = {
-        glm::vec3(0.0f, 4.0f, -50.0f),
-        glm::vec3(0.0f, 0.0f, -1.0f),
-        glm::vec3(1.0f, 0.5f, 0.1f),
-        glm::radians(80.0f),
-        45.0f,
-        4.5f
-    };
 
     // TODO Need to add light correction
     glm::vec3 lightColor = glm::vec3(4.0f);
@@ -180,13 +177,6 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
     glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
     glUniform3fv(mainShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
-
-    // glUniform3fv(mainShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(thruster.pos));
-    // glUniform3fv(mainShader.getUniformLocation("thrusterLightDir"), 1, glm::value_ptr(thruster.dir));
-    // glUniform3fv(mainShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(thruster.color));
-    // glUniform1f(mainShader.getUniformLocation("thrusterThresholdLight"), thruster.thresholdLight);
-    // glUniform1f(mainShader.getUniformLocation("thrusterLightIntensity"), thruster.intensity);
-    // glUniform1f(mainShader.getUniformLocation("thrusterLightAngle"), thruster.angle);
 
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
@@ -209,9 +199,12 @@ void Battlecruiser::draw(const glm::mat4 &view,
 
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
-            glBindVertexArray(0);
         }
     }
+
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
 
     // --- Pass 2: reflective meshes ---
     reflectiveShader.bind();
@@ -230,6 +223,50 @@ void Battlecruiser::draw(const glm::mat4 &view,
             glBindVertexArray(m.vao);
             glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
         }
+    }
+
+    glDepthMask(GL_TRUE);
+    glDepthFunc(GL_LESS);
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_ONE, GL_ONE);
+    glDepthFunc(GL_LEQUAL);
+    glDepthMask(GL_FALSE);
+
+    // --- Pass 3: Thruster Light ---
+    static std::default_random_engine rng(std::random_device{}());
+    static std::uniform_real_distribution<float> flickerDist(-0.01f, 0.01f);
+
+    std::uniform_int_distribution<int> distR(233.0f, 255.f);
+    std::uniform_int_distribution<int> distG(165.0f, 255.f);
+
+    glm::vec3 lightThrusterPos = glm::vec3(-0.02f, -0.147f, -2.2f);
+    glm::vec3 lightThrusterColor = glm::vec3(static_cast<unsigned char>(distR(rng)), static_cast<unsigned char>(distG(rng)), 0.0f);
+    glm::vec3 thrusterDir = getDirectionVector();
+
+    float randomOffset = flickerDist(rng);
+    float flickeringRadius = thrusterRadius + randomOffset;
+
+    thrusterShader.bind();
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(getModelMatrix()));
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(thrusterShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(thrusterShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(lightThrusterPos));
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(lightThrusterColor));
+    glUniform3fv(thrusterShader.getUniformLocation("thrusterDir"), 1, glm::value_ptr(thrusterDir));
+
+    glUniform1f(thrusterShader.getUniformLocation("radius"), radius);
+    glUniform1i(thrusterShader.getUniformLocation("nrLights"), nrLights);
+    glUniform1f(thrusterShader.getUniformLocation("thrusterRadius"), flickeringRadius);
+    glUniform1f(thrusterShader.getUniformLocation("thrusterIntensity"), thrusterIntensity);
+
+
+    for (const auto &m: meshGLs) {
+        glBindVertexArray(m.vao);
+        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
     }
 }
 
@@ -369,6 +406,13 @@ void Battlecruiser::imGuiControl() {
     if (ImGui::Checkbox("Follow Bezier Path", &isFollowingPath)) {
         bezierPath.initializeBezierPathMovement(config.battlecruiser_path_info, position, velocity);
     }
+
+    ImGui::Separator();
+    ImGui::Text("Battlecruiser Light Panel");
+    ImGui::DragFloat("Radius", &radius, 0.01f);
+    ImGui::DragInt("Nr Lights", &nrLights, 1);
+    ImGui::DragFloat("Thruster radius", &thrusterRadius, 0.01f);
+    ImGui::DragFloat("Thruster intensity", &thrusterIntensity, 0.01f);
 }
 
 
