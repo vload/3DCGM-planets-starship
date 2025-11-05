@@ -199,7 +199,10 @@ void ParticleSystem::draw_stage(const glm::mat4 &view, const glm::mat4 &projecti
     glm::vec3 camRight(view[0][0], view[1][0], view[2][0]);
     glm::vec3 camUp(view[0][1], view[1][1], view[2][1]);
 
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glDepthMask(GL_FALSE);
+    glDepthFunc(GL_LEQUAL);
 
     shader.bind();
     glUniformMatrix4fv(shader.getUniformLocation("model"), 1, GL_FALSE, glm::value_ptr(battlecruiser.getModelMatrix()));
@@ -238,8 +241,6 @@ void ParticleSystem::update(const glm::vec3 &camPos, const float dt) {
     spawnRadius = glm::mix(0.05f, 0.1f, battlecruiserSpeed / 3);
     coneAngle = glm::mix(8.0f, 20.0f, battlecruiserSpeed / 3);
     velocitySpread = glm::mix(0.05f, 0.4f, battlecruiserSpeed / 3);
-
-    std::cout << velocitySpread << std::endl;
 
     spawn_stage(dt);
     update_stage(dt, camPos);

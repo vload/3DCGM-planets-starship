@@ -67,6 +67,7 @@ class Skybox {
 
     void draw(glm::mat4 view, glm::mat4 projection) {
         glDepthFunc(GL_LEQUAL);
+
         glDepthMask(GL_FALSE);
 
         shader.bind();
@@ -84,6 +85,9 @@ class Skybox {
         glDrawElements(GL_TRIANGLES, 36, GL_UNSIGNED_INT, 0);
         
         glBindVertexArray(0);
+
+        glDepthMask(GL_TRUE);
+        glDepthFunc(GL_LESS);
     }
 
     unsigned int getCubemapTexture() { return _cubemapTexture; }

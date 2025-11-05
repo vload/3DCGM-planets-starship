@@ -143,7 +143,7 @@ Battlecruiser::Battlecruiser(Window &window, Config &config): window(window), co
     reflectiveShader =
             ShaderBuilder()
             .addStage(GL_VERTEX_SHADER, RESOURCE_ROOT
-                      "shaders/battlecruiser/shader_vert.glsl")
+                      "shaders/battlecruiser/glass_shader_vert.glsl")
             .addStage(GL_FRAGMENT_SHADER, RESOURCE_ROOT
                       "shaders/battlecruiser/glass_shader_frag.glsl")
             .build();
@@ -165,7 +165,7 @@ void Battlecruiser::draw(const glm::mat4 &view,
     };
 
     // TODO Need to add light correction
-    glm::vec3 lightColor = glm::vec3(5.0f);
+    glm::vec3 lightColor = glm::vec3(4.0f);
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -190,24 +190,46 @@ void Battlecruiser::draw(const glm::mat4 &view,
 
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, m.baseMap);
-        glUniform1i(mainShader.getUniformLocation("textureBase"), 0);
+        if (m.materialName != "Panel-10") {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, m.baseMap);
+            glUniform1i(mainShader.getUniformLocation("textureBase"), 0);
 
-        glActiveTexture(GL_TEXTURE1);
-        glBindTexture(GL_TEXTURE_2D, m.normalMap);
-        glUniform1i(mainShader.getUniformLocation("textureNormal"), 1);
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, m.normalMap);
+            glUniform1i(mainShader.getUniformLocation("textureNormal"), 1);
 
-        glActiveTexture(GL_TEXTURE2);
-        glBindTexture(GL_TEXTURE_2D, m.metallicMap);
-        glUniform1i(mainShader.getUniformLocation("textureMetallic"), 2);
+            glActiveTexture(GL_TEXTURE2);
+            glBindTexture(GL_TEXTURE_2D, m.metallicMap);
+            glUniform1i(mainShader.getUniformLocation("textureMetallic"), 2);
 
-        glActiveTexture(GL_TEXTURE3);
-        glBindTexture(GL_TEXTURE_2D, m.roughnessMap);
-        glUniform1i(mainShader.getUniformLocation("textureRoughness"), 3);
+            glActiveTexture(GL_TEXTURE3);
+            glBindTexture(GL_TEXTURE_2D, m.roughnessMap);
+            glUniform1i(mainShader.getUniformLocation("textureRoughness"), 3);
 
-        glBindVertexArray(m.vao);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
+            glBindVertexArray(m.vao);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
+            glBindVertexArray(0);
+        }
+    }
+
+    // --- Pass 2: reflective meshes ---
+    reflectiveShader.bind();
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("model"), 1, GL_FALSE,
+                       glm::value_ptr(getModelMatrix()));
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+    glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+
+    for (const auto &m: meshGLs) {
+        if (m.materialName == "Panel-10") {
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, cubemapTexture);
+            glUniform1i(mainShader.getUniformLocation("environmentMap"), 0);
+
+            glBindVertexArray(m.vao);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
+        }
     }
 }
 
