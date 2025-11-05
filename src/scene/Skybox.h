@@ -67,7 +67,7 @@ class Skybox {
 
     void draw(glm::mat4 view, glm::mat4 projection) {
         glDepthFunc(GL_LEQUAL);
-        glDepthMask(GL_FALSE);  // Don't write skybox to depth buffer
+        glDepthMask(GL_FALSE);
 
         shader.bind();
 
