@@ -23,14 +23,12 @@ uniform float radius;
 
 // Eclipse "ray tracing"
 uniform int enable_eclipse = 1;
-
 uniform int num_bodies = 0;
 uniform vec4 bodyPosRadii[128]; // xyz = position, w = radius of all bodies
 
-
 uniform int binary_system = 0; // 0 = single star, 1 = binary star
-uniform vec4 sunPosRad;
-// uniform vec4 sunPosRad2;
+uniform vec4 sunPosRadii[128]; // xyz = position, w = radius of light sources
+uniform vec4 sunColInt[128]; // xyz = color, w = intensity
 
 // Projects point P0 onto a plane defined by point P1 and normal N
 vec3 projectPointOntoPlane(vec3 P0, vec3 P1, vec3 N) {
@@ -40,6 +38,9 @@ vec3 projectPointOntoPlane(vec3 P0, vec3 P1, vec3 N) {
 }
 
 float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
+    if(enable_eclipse == 0) {
+        return 0.0;
+    }
     vec3 sunPos = sunPosRad.xyz;
     float sunRad = sunPosRad.w;
 
@@ -81,19 +82,46 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
     return clamp(covered, 0.0, 1.0);
 }
 
+uniform vec3 lightPosition1;
+uniform mat4 lightViewMatrix1;
+uniform mat4 lightProjectionMatrix1;
+uniform vec3 lightPosition2;
+uniform mat4 lightViewMatrix2;
+uniform mat4 lightProjectionMatrix2;
+uniform int only_depth = 0;
+
+uniform float exposure; // tweak this
+uniform float gamma; // typically 2.2 for sRGB monitors
+
 void main()
 {
-    float covered = 0.0;
-    if (enable_eclipse > 0) {
-        covered = eclipse_factor(fragPosition, sunPosRad);
+    float covered1 = eclipse_factor(fragPosition, sunPosRadii[0]);
+    float eclipseLightFactor1 = 1.0 - covered1;
+    float eclipseLightFactor2 = 1.0;
+    if(binary_system == 1) {
+        float covered2 = eclipse_factor(fragPosition, sunPosRadii[1]);
+        eclipseLightFactor2 = 1.0 - covered2;
     }
-    float eclipseLightFactor = 1.0 - covered;
 
-    vec3 lightDir = normalize(lightPos - fragPosition);
     vec3 normal = normalize(spherePosition); // approximate normal on sphere
-    float diffuse = max(dot(normal, lightDir), 0.0);
+    vec3 ambient = 0.05 * body_color;
+    vec3 hdrColor = ambient;
 
-    float ambient = 0.1;
+    vec3 lightDir1 = normalize(lightPosition1 - fragPosition);
+    vec3 diffuse1 = max(dot(normal, lightDir1), 0.0) * body_color;
+    hdrColor += diffuse1 * eclipseLightFactor1 * sunColInt[0].w * sunColInt[0].xyz * exposure;
 
-    fragColor = vec4(body_color * (diffuse * eclipseLightFactor + ambient), 1.0);
+    if(binary_system == 1) {
+        vec3 lightDir2 = normalize(lightPosition2 - fragPosition);
+        vec3 diffuse2 = max(dot(normal, lightDir2), 0.0) * body_color;
+        hdrColor += diffuse2 * eclipseLightFactor2 * sunColInt[1].w * sunColInt[1].xyz * exposure;
+    }
+
+    // Reinhard tone mapping
+    vec3 mappedColor = hdrColor / (hdrColor + vec3(1.0));
+
+    // Gamma correction
+    mappedColor = pow(mappedColor, vec3(1.0/gamma));
+
+    fragColor = vec4(mappedColor, 1.0);
 }

@@ -58,7 +58,7 @@ public:
         float waterKd = 0.9f;
         float waterKs = 0.9f;
         float waterShininess = 128.0f;
-        float ocean_normal_gradient_multiplier = 0.01f;
+        float ocean_normal_amplitude = 0.01f;
     };
 
     std::string window_title;
@@ -71,17 +71,33 @@ public:
     float freecam_move_speed;
     float freecam_look_speed;
 
+    float target_gray_brightness;
+    float gamma;
+
     int planets_ico_mesh_resolution;
     std::vector<PlanetInfo> planets;
 
     bool enable_eclipse_shadows;
     bool enable_shadow_mapping_planets;
     int shadow_map_size;
+    bool is_binary_system;
     
     glm::vec3 body_fallback_color;
 
     BattlecruiserPathInfo battlecruiser_path_info;
     EarthParams earth_params;
+
+    // Star-specific parameters (surface noise / animation)
+    struct StarParams {
+        int noise_octaves = 5;
+        float noise_lacunarity = 2.0f;
+        float noise_persistence = 0.3f;
+        float warp_noise_scale = 1.5f;
+        float noise_scale = 20.0f;
+        float animation_speed = 0.3f;
+    };
+
+    StarParams star_params;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -103,11 +119,15 @@ public:
         freecam_look_speed = data["camera"]["freecam"]["look_speed"].value_or(0.035f);
 
         planets_ico_mesh_resolution = data["planets"]["ico_mesh_resolution"].value_or(5);
+        target_gray_brightness = data["camera"]["target_gray_brightness"].value_or(0.4f);
+        gamma = data["camera"]["gamma"].value_or(1.3f);
 
         body_fallback_color =
             tomlArrayToVec3(
                 data["planets"]["fallback_color"].as_array())
                 .value_or(glm::vec3(0.3f, 0.3f, 1.0f));
+
+        is_binary_system = data["planets"]["binary_system"].value_or(false);
 
         // Get the underlying array object for planets_info
         if (toml::array* planets_array = data["planets"]["planets_info"].as_array()) {
@@ -197,13 +217,29 @@ public:
                 earth_table->get("waterKs")->value_or(0.9f);
             earth_params.waterShininess =
                 earth_table->get("waterShininess")->value_or(128.0f);
-            earth_params.ocean_normal_gradient_multiplier =
-                earth_table->get("ocean_normal_gradient_multiplier")->value_or(0.01f);
+            earth_params.ocean_normal_amplitude =
+                earth_table->get("ocean_normal_amplitude")->value_or(0.01f);
         }
 
         enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
         enable_shadow_mapping_planets = data["shadows"]["enable_shaddow_mapping_planets"].value_or(false);
         shadow_map_size = data["shadows"]["shadow_map_size"].value_or(2048);
+
+        // Read star-specific params (global defaults for "star" type)
+        if (toml::table* star_table = data["planets"]["star"].as_table()) {
+            star_params.noise_octaves =
+                star_table->get("noise_octaves")->value_or(5);
+            star_params.noise_lacunarity =
+                star_table->get("noise_lacunarity")->value_or(2.0f);
+            star_params.noise_persistence =
+                star_table->get("noise_persistence")->value_or(0.3f);
+            star_params.warp_noise_scale =
+                star_table->get("warp_noise_scale")->value_or(1.5f);
+            star_params.noise_scale =
+                star_table->get("noise_scale")->value_or(20.0f);
+            star_params.animation_speed =
+                star_table->get("animation_speed")->value_or(0.3f);
+        }
     }
 
 private:
