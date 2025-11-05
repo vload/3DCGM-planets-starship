@@ -217,6 +217,10 @@ int main() {
 
         if (debug_mode) {
         } else {
+            /// -- Pass #1: Render Skybox
+            reset_opengl_state();
+            skybox.draw(active_camera->get_view_matrix(), projection_matrix);
+
             /// -- Pass #2 and #3: Shadow-map per body(that needs it) and Render Bodies
             reset_opengl_state();
             planet_system.draw(active_camera->get_view_matrix(),
@@ -234,11 +238,6 @@ int main() {
             /// -- Pass #6: Render battlecruiser Bezier Path
             reset_opengl_state();
             battlecruiser.drawBezierPath(active_camera->get_view_matrix(), projection_matrix);
-
-
-            /// -- Pass #7: Render Skybox
-            reset_opengl_state();
-            skybox.draw(active_camera->get_view_matrix(), projection_matrix);
 
             /// -- Pass #8: Render battlecruiser Particles
             reset_opengl_state();
