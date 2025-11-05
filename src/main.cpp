@@ -70,7 +70,8 @@ void reset_opengl_state() {
 
 void load_config(Config &config) {
     try {
-        config.load_config(RESOURCE_ROOT "settings.toml");
+        // TODO: add path as parameter to main
+        config.load_config(RESOURCE_ROOT "binary.toml");
     } catch (const std::exception &e) {
         std::cerr << "Error loading config: " << e.what() << std::endl;
         // Handle error appropriately (e.g., set default values or exit)

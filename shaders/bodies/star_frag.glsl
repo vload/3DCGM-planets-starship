@@ -178,6 +178,7 @@ float coloreh(vec4 pos) {
     return noise_val;
 }
 
+uniform vec4 star_color_intensity;
 
 void main()
 {
@@ -185,9 +186,14 @@ void main()
 
     // interpolate colors based on noise value
     // TODO: maybe with materials, or at least uniforms.
-    vec3 c0 = vec3(0.5, 0.0, 0.0); // #800000
-    vec3 c1 = vec3(1.0, 0.5, 0.0); // #FF8000
-    vec3 c2 = vec3(1.0, 1.0, 1.0); // #FFFFFF
+    // vec3 c0 = vec3(0.5, 0.0, 0.0); // #800000
+    // vec3 c1 = vec3(1.0, 0.5, 0.0); // #FF8000
+    // vec3 c2 = vec3(1.0, 1.0, 1.0); // #FFFFFF
+
+    
+    vec3 c0 = star_color_intensity.rgb / 2;
+    vec3 c1 = star_color_intensity.rgb;
+    vec3 c2 = vec3(1.0, 1.0, 1.0);
 
     vec3 colorFromNoise;
     if (noise_val <= 0.0) {

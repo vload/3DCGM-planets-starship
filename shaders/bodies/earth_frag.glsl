@@ -147,12 +147,27 @@ float fractalNoise(vec3 p) {
 }
 
 float get_height(vec3 sphere_pos) {
-    return fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+    float temp = fractalNoise(sphere_pos * shape_noise_base_frequency + vec3(shape_noise_pseudo_seed));
+    temp *= 2.0;
+    float abstemp = abs(temp);
+    float signtemp = temp < 0.0 ? -1.0 : 1.0;
+    temp = signtemp * pow(abstemp, 1.5); // sharpen
+
+    return temp; // exaggerate features
 }
+
+
+uniform int enable_surface_normal_calculation = 1;
 
 vec3 get_surface_normal(vec3 pos)
 {
-    float eps = 0.001; // small step for finite differences
+    vec3 N = normalize(pos); // approximate normal
+
+    if(enable_surface_normal_calculation == 0) {
+        return N;
+    }
+
+    float eps = 0.0001; // small step for finite differences
     float h = get_height(pos);
 
     float hx = get_height(pos + vec3(eps, 0.0, 0.0));
@@ -160,10 +175,10 @@ vec3 get_surface_normal(vec3 pos)
     float hz = get_height(pos + vec3(0.0, 0.0, eps));
 
     vec3 grad = vec3(hx - h, hy - h, hz - h) / eps;
-    
-    // Normal points opposite to gradient, then normalize
-    vec3 n = normalize(pos - grad * shape_noise_scale);
-    return n;
+    vec3 grad_tangent = grad - N * dot(grad, N);
+    // perturbed normal
+    vec3 Np = normalize(N - grad_tangent);
+    return Np;
 }
 
 //
@@ -334,25 +349,30 @@ float fractalNoise(vec4 p) {
 }
 
 
-uniform float ocean_normal_gradient_multiplier = 0.01;
+uniform float ocean_normal_amplitude = 0.01;
+uniform int enable_ocean_normal_calculation = 1;
 
 // Computes a procedural ocean normal for a spherical planet
 vec3 getOceanNormal(vec3 pos, float time) {
-    float eps = 0.001; // small step for finite differences
-    float delta = 0.001;
-    
-    float h = fractalNoise(vec4(pos * ocean_scale, time * ocean_speed));
+    vec3 N = normalize(pos); // approximate normal
 
-    float hx = fractalNoise(vec4((pos + vec3(1.0, 0.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
-    float hy = fractalNoise(vec4((pos + vec3(0.0, 1.0, 0.0) * delta) * ocean_scale, time * ocean_speed));
-    float hz = fractalNoise(vec4((pos + vec3(0.0, 0.0, 1.0) * delta) * ocean_scale, time * ocean_speed));
+    if(enable_ocean_normal_calculation == 0) {
+        return N;
+    }
+
+    float eps = 0.0001; // small step for finite differences
+
+    float h = ocean_normal_amplitude * fractalNoise(vec4(pos * ocean_scale, time * ocean_speed));
+
+    float hx = ocean_normal_amplitude * fractalNoise(vec4((pos + vec3(1.0, 0.0, 0.0) * eps) * ocean_scale, time * ocean_speed));
+    float hy = ocean_normal_amplitude * fractalNoise(vec4((pos + vec3(0.0, 1.0, 0.0) * eps) * ocean_scale, time * ocean_speed));
+    float hz = ocean_normal_amplitude * fractalNoise(vec4((pos + vec3(0.0, 0.0, 1.0) * eps) * ocean_scale, time * ocean_speed));
 
     // Compute gradient in tangent plane
     vec3 grad = vec3(hx - h, hy - h, hz - h) / eps;
     
-    // Normal points opposite to gradient, then normalize
-    vec3 n = normalize(pos - grad * ocean_normal_gradient_multiplier);
-    return n;
+    vec3 grad_tangent = grad - N * dot(grad, N);
+    return normalize(N - grad_tangent); // * ocean_normal_gradient_multiplier);
 }
 
 uniform vec3 cameraWorldPos;
@@ -361,14 +381,18 @@ uniform float waterKd = 0.8; // diffuse
 uniform float waterKs = 0.9; // specular
 uniform float waterShininess = 128.0;
 
+
+uniform float surface_ka = 0.1; // surface ambient
+uniform float surface_kd = 0.9; // surface diffuse
+
 // Eclipse "ray tracing"
 uniform int enable_eclipse = 1;
 uniform int num_bodies = 0;
 uniform vec4 bodyPosRadii[128]; // xyz = position, w = radius of all bodies
 
 uniform int binary_system = 0; // 0 = single star, 1 = binary star
-uniform vec4 sunPosRad;
-// uniform vec4 sunPosRad2;
+uniform vec4 sunPosRadii[128]; // xyz = position, w = radius of light sources
+uniform vec4 sunColInt[128]; // xyz = color, w = intensity
 
 // Projects point P0 onto a plane defined by point P1 and normal N
 vec3 projectPointOntoPlane(vec3 P0, vec3 P1, vec3 N) {
@@ -378,6 +402,9 @@ vec3 projectPointOntoPlane(vec3 P0, vec3 P1, vec3 N) {
 }
 
 float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
+    if(enable_eclipse == 0) {
+        return 0.0;
+    }
     vec3 sunPos = sunPosRad.xyz;
     float sunRad = sunPosRad.w;
 
@@ -419,18 +446,22 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
     return clamp(covered, 0.0, 1.0);
 }
 
-uniform vec3 lightPosition;
-uniform mat4 lightViewMatrix;
-uniform mat4 lightProjectionMatrix;
+uniform vec3 lightPosition1;
+uniform mat4 lightViewMatrix1;
+uniform mat4 lightProjectionMatrix1;
+uniform vec3 lightPosition2;
+uniform mat4 lightViewMatrix2;
+uniform mat4 lightProjectionMatrix2;
 uniform int only_depth = 0;
 
 uniform int enable_shadowmapping = 1;
 uniform int enable_PCF = 1;
 uniform int PCF_kernel_radius = 1;
 
-uniform sampler2D shadowMap;
+uniform sampler2D shadowMap1;
+uniform sampler2D shadowMap2;
 
-float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
+float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir, mat4 lightViewMatrix, mat4 lightProjectionMatrix, sampler2D shadowMap)
 {
     if(enable_shadowmapping == 0) {
         return 0.0;
@@ -474,25 +505,29 @@ float shadow_calculation(vec3 fragPos, vec3 normal, vec3 lightDir)
     return shadow; // 0.0 = fully lit, 1.0 = fully shadowed
 }
 
+uniform float exposure; // tweak this
+uniform float gamma; // typically 2.2 for sRGB monitors
+
 void main()
 {
     if(only_depth != 1) {
 
-    float covered = 0.0;
-    if (enable_eclipse > 0) {
-        covered = eclipse_factor(fragPosition, sunPosRad);
+    float covered1 = eclipse_factor(fragPosition, sunPosRadii[0]);
+    float eclipseLightFactor1 = 1.0 - covered1;
+    float eclipseLightFactor2 = 1.0;
+    if(binary_system == 1) {
+        float covered2 = eclipse_factor(fragPosition, sunPosRadii[1]);
+        eclipseLightFactor2 = 1.0 - covered2;
     }
-    float eclipseLightFactor = 1.0 - covered;
 
     // Shadows
-    float shadowMultiplier = 1.0;
-    // shadowMultiplier = 1.0 - shadow_calculation(fragPosition);
 
     if (height < ocean_level) {
         float ocean_depth = ocean_level - height;
         vec3 waterColor = vec3(0.0, 0.0, 1.0);
         
-        // TODO: gradient color based on depth (could be uniform params)
+        // gradient color based on depth
+        // TODO:  (could be uniform params)
         vec3 col1 = vec3(0.933, 0.933, 1.0);   // #EEF
         vec3 col2 = vec3(0.133, 0.333, 0.467); // #257
         vec3 col3 = vec3(0.067, 0.133, 0.267); // #124
@@ -507,53 +542,113 @@ void main()
         }
 
         vec3 normal = getOceanNormal(spherePosition, time);
-        vec3 lightDir = normalize(lightPosition - fragPosition);
-
-        // Phong reflection model
+        
         vec3 ambient = waterKa * waterColor.rgb;
-        vec3 diffuse = waterKd * max(dot(normal, lightDir), 0.0) * waterColor.rgb;
+        
+        vec3 hdrColor = ambient;
+        
+        // Phong reflection model
+        vec3 lightDir1 = normalize(lightPosition1 - fragPosition);
+        vec3 diffuse1 = waterKd * max(dot(normal, lightDir1), 0.0) * waterColor.rgb;
         vec3 viewDir = normalize(cameraWorldPos - fragPosition);
-        vec3 reflectDir = reflect(-lightDir, normal);
-        vec3 specular = waterKs * pow(max(dot(viewDir, reflectDir), 0.0), waterShininess) * vec3(1.0);
+        vec3 reflectDir1 = reflect(-lightDir1, normal);
+        vec3 specular1 = waterKs * pow(max(dot(viewDir, reflectDir1), 0.0), waterShininess) * vec3(1.0);
+        float shadowMultiplier1 = 1.0 - shadow_calculation(fragPosition, normal, lightDir1, lightViewMatrix1, lightProjectionMatrix1, shadowMap1);
 
-        shadowMultiplier = 1.0 - shadow_calculation(fragPosition, normal, lightDir);
-        fragColor = vec4(ambient + (diffuse + specular) * eclipseLightFactor * shadowMultiplier, 1.0);
+        hdrColor += (diffuse1 + specular1) * eclipseLightFactor1 * shadowMultiplier1 * sunColInt[0].xyz * sunColInt[0].w * exposure;
+
+        if(binary_system == 1) {
+            vec3 lightDir2 = normalize(lightPosition2 - fragPosition);
+            vec3 diffuse2 = waterKd * max(dot(normal, lightDir2), 0.0) * waterColor.rgb;
+            vec3 reflectDir2 = reflect(-lightDir2, normal);
+            vec3 specular2 = waterKs * pow(max(dot(viewDir, reflectDir2), 0.0), waterShininess) * vec3(1.0);
+            float shadowMultiplier2 = 1.0 - shadow_calculation(fragPosition, normal, lightDir2, lightViewMatrix2, lightProjectionMatrix2, shadowMap2);
+            hdrColor += (diffuse2 + specular2) * eclipseLightFactor2 * shadowMultiplier2 * sunColInt[1].xyz * sunColInt[1].w * exposure;
+        }
+
+        // Reinhard tone mapping
+        vec3 mappedColor = hdrColor / (hdrColor + vec3(1.0));
+
+        // Gamma correction
+        mappedColor = pow(mappedColor, vec3(1.0/gamma));
+
+        fragColor = vec4(mappedColor, 1.0);
     }
     else{
         //TODO: maybe use materials for this, or at least blinnphong with uniforms
+        vec3 col;
+        vec3 normal = get_surface_normal(spherePosition);
+
+        vec3 base_color = vec3(0.0, 1.0, 0.0);
         float t = (height - ocean_level) / (1.0 - ocean_level);
         vec3 green = vec3(0.0, 1.0, 0.0);
         vec3 gray  = vec3(0.5, 0.5, 0.5);
         vec3 white = vec3(1.0, 1.0, 1.0);
 
-        vec3 col;
-        if (t <= 0.2) {
-            col = green;
-        } else if (t < 0.3) {
-            float s = smoothstep(0.2, 0.3, t);
-            col = mix(green, gray, s);
-        } else if (t <= 0.37) {
-            col = gray;
-        } else if (t < 0.43) {
-            float s = smoothstep(0.37, 0.43, t);
-            col = mix(gray, white, s);
+        // Biome coloring: sand, grass, forest, snow
+        // t = (height - ocean_level) / (1.0 - ocean_level);
+        vec3 sand   = vec3(0.85, 0.75, 0.55);
+        vec3 forest = vec3(0.1, 0.4, 0.1);
+
+        if (t < 0.08) {
+            float s = smoothstep(0.0, 0.08, t);
+            base_color = mix(sand, green, s);
+        } else if (t < 0.25) {
+            // float s = smoothstep(0.08, 0.35, t);
+            base_color = green;
+        } else if (t < 0.35) {
+            float s = smoothstep(0.25, 0.35, t);
+            base_color = mix(green, forest, s);
+        } else if (t < 0.55) {
+            base_color = forest;
+        } 
+        else if (t < 0.75) {
+            float s = smoothstep(0.45, 0.75, t);
+            base_color = mix(forest, white, s);
         } else {
-            col = white;
+            base_color = white;
+        }
+
+
+        // grass and snow don't grow on steep slopes
+        t = dot(normal, normalize(spherePosition));
+
+        if(t < 0.0) {
+            col = vec3(0.0, 0.0, 0.0); // should not happen
+        } else if(t > 0.2) {
+            col = base_color;
+        } else if(t > 0.08) {
+            float s = smoothstep(0.2, 0.08, t);
+            col = mix(base_color, gray, s);
+        } else {
+            col = gray; // should not happen
         }
 
         // TODO: temp phong shading, replace with PBR later
-        float ka = 0.1; // ambient
-        float kd = 0.9; // diffuse
 
-        vec3 normal = get_surface_normal(spherePosition);
-        vec3 lightDir = normalize(lightPosition - fragPosition);
+        vec3 ambient = surface_ka * col;
+        vec3 hdrColor = ambient;
+
+        vec3 lightDir1 = normalize(lightPosition1 - fragPosition);
 
         // Phong reflection model
-        vec3 ambient = ka * col;
-        vec3 diffuse = kd * max(dot(normal, lightDir), 0.0) * col;
-        
-        shadowMultiplier = 1.0 - shadow_calculation(fragPosition, normal, lightDir);
-        fragColor = vec4(ambient + diffuse * eclipseLightFactor * shadowMultiplier, 1.0);
+        vec3 diffuse1 = surface_kd * max(dot(normal, lightDir1), 0.0) * col;
+        float shadowMultiplier1 = 1.0 - shadow_calculation(fragPosition, normal, lightDir1, lightViewMatrix1, lightProjectionMatrix1, shadowMap1);
+        hdrColor += diffuse1 * eclipseLightFactor1 * shadowMultiplier1 * sunColInt[0].xyz * sunColInt[0].w * exposure;
+
+        if(binary_system == 1) {
+            vec3 lightDir2 = normalize(lightPosition2 - fragPosition);
+            vec3 diffuse2 = surface_kd * max(dot(normal, lightDir2), 0.0) * col;
+            float shadowMultiplier2 = 1.0 - shadow_calculation(fragPosition, normal, lightDir2, lightViewMatrix2, lightProjectionMatrix2, shadowMap2);
+            hdrColor += diffuse2 * eclipseLightFactor2 * shadowMultiplier2 * sunColInt[1].xyz * sunColInt[1].w * exposure;
+        }
+        // Reinhard tone mapping
+        vec3 mappedColor = hdrColor / (hdrColor + vec3(1.0));
+
+        // Gamma correction
+        mappedColor = pow(mappedColor, vec3(1.0/gamma));
+
+        fragColor = vec4(mappedColor, 1.0);
     }
     }
     else{

@@ -9,6 +9,7 @@ DISABLE_WARNINGS_POP()
 #include <optional>
 #include <iostream>
 #include <string>
+#include <vector>
 
 class Config {
 public:
@@ -34,6 +35,32 @@ public:
         float orbit_period;
     };
 
+    // Earth-specific parameters (shape + water)
+    struct EarthParams {
+        // Earth shape parameters
+        int shape_noise_octaves = 5;
+        float shape_noise_lacunarity = 2.0f;
+        float shape_noise_persistence = 0.45f;
+        float shape_noise_base_frequency = 1.2f;
+        float ocean_level = 0.0f;
+        float shape_noise_pseudo_seed = 100.0f;
+        float shape_noise_scale = 0.25f;
+        float surface_ka = 0.1f;
+        float surface_kd = 0.9f;
+
+        // Earth water parameters
+        int water_noise_octaves = 5;
+        float water_noise_lacunarity = 2.0f;
+        float water_noise_persistence = 0.45f;
+        float ocean_scale = 10.0f;
+        float ocean_speed = 0.3f;
+        float waterKa = 0.1f;
+        float waterKd = 0.9f;
+        float waterKs = 0.9f;
+        float waterShininess = 128.0f;
+        float ocean_normal_amplitude = 0.01f;
+    };
+
     std::string window_title;
     int window_initial_width;
     int window_initial_height;
@@ -44,14 +71,33 @@ public:
     float freecam_move_speed;
     float freecam_look_speed;
 
+    float target_gray_brightness;
+    float gamma;
+
     int planets_ico_mesh_resolution;
     std::vector<PlanetInfo> planets;
 
     bool enable_eclipse_shadows;
     bool enable_shadow_mapping_planets;
     int shadow_map_size;
+    bool is_binary_system;
+    
+    glm::vec3 body_fallback_color;
 
     BattlecruiserPathInfo battlecruiser_path_info;
+    EarthParams earth_params;
+
+    // Star-specific parameters (surface noise / animation)
+    struct StarParams {
+        int noise_octaves = 5;
+        float noise_lacunarity = 2.0f;
+        float noise_persistence = 0.3f;
+        float warp_noise_scale = 1.5f;
+        float noise_scale = 20.0f;
+        float animation_speed = 0.3f;
+    };
+
+    StarParams star_params;
     
     void load_config(const char* path) {
         // Load configuration from toml file at 'path'
@@ -73,6 +119,15 @@ public:
         freecam_look_speed = data["camera"]["freecam"]["look_speed"].value_or(0.035f);
 
         planets_ico_mesh_resolution = data["planets"]["ico_mesh_resolution"].value_or(5);
+        target_gray_brightness = data["camera"]["target_gray_brightness"].value_or(0.4f);
+        gamma = data["camera"]["gamma"].value_or(1.3f);
+
+        body_fallback_color =
+            tomlArrayToVec3(
+                data["planets"]["fallback_color"].as_array())
+                .value_or(glm::vec3(0.3f, 0.3f, 1.0f));
+
+        is_binary_system = data["planets"]["binary_system"].value_or(false);
 
         // Get the underlying array object for planets_info
         if (toml::array* planets_array = data["planets"]["planets_info"].as_array()) {
@@ -123,9 +178,68 @@ public:
             }
         }
 
+        // Read earth-specific params (global defaults for "earth" type)
+        if (toml::table* earth_table = data["planets"]["earth"].as_table()) {
+            earth_params.shape_noise_octaves =
+                earth_table->get("shape_noise_octaves")->value_or(5);
+            earth_params.shape_noise_lacunarity =
+                earth_table->get("shape_noise_lacunarity")->value_or(2.0f);
+            earth_params.shape_noise_persistence =
+                earth_table->get("shape_noise_persistence")->value_or(0.45f);
+            earth_params.shape_noise_base_frequency =
+                earth_table->get("shape_noise_base_frequency")->value_or(1.2f);
+            earth_params.ocean_level =
+                earth_table->get("ocean_level")->value_or(0.0f);
+            earth_params.shape_noise_pseudo_seed =
+                earth_table->get("shape_noise_pseudo_seed")->value_or(100.0f);
+            earth_params.shape_noise_scale =
+                earth_table->get("shape_noise_scale")->value_or(0.25f);
+            earth_params.surface_ka =
+                earth_table->get("surface_ka")->value_or(0.1f);
+            earth_params.surface_kd =
+                earth_table->get("surface_kd")->value_or(0.9f);
+
+            earth_params.water_noise_octaves =
+                earth_table->get("water_noise_octaves")->value_or(5);
+            earth_params.water_noise_lacunarity =
+                earth_table->get("water_noise_lacunarity")->value_or(2.0f);
+            earth_params.water_noise_persistence =
+                earth_table->get("water_noise_persistence")->value_or(0.45f);
+            earth_params.ocean_scale =
+                earth_table->get("ocean_scale")->value_or(10.0f);
+            earth_params.ocean_speed =
+                earth_table->get("ocean_speed")->value_or(0.3f);
+            earth_params.waterKa =
+                earth_table->get("waterKa")->value_or(0.1f);
+            earth_params.waterKd =
+                earth_table->get("waterKd")->value_or(0.9f);
+            earth_params.waterKs =
+                earth_table->get("waterKs")->value_or(0.9f);
+            earth_params.waterShininess =
+                earth_table->get("waterShininess")->value_or(128.0f);
+            earth_params.ocean_normal_amplitude =
+                earth_table->get("ocean_normal_amplitude")->value_or(0.01f);
+        }
+
         enable_eclipse_shadows = data["shadows"]["enable_eclipse_shadows"].value_or(false);
         enable_shadow_mapping_planets = data["shadows"]["enable_shaddow_mapping_planets"].value_or(false);
         shadow_map_size = data["shadows"]["shadow_map_size"].value_or(2048);
+
+        // Read star-specific params (global defaults for "star" type)
+        if (toml::table* star_table = data["planets"]["star"].as_table()) {
+            star_params.noise_octaves =
+                star_table->get("noise_octaves")->value_or(5);
+            star_params.noise_lacunarity =
+                star_table->get("noise_lacunarity")->value_or(2.0f);
+            star_params.noise_persistence =
+                star_table->get("noise_persistence")->value_or(0.3f);
+            star_params.warp_noise_scale =
+                star_table->get("warp_noise_scale")->value_or(1.5f);
+            star_params.noise_scale =
+                star_table->get("noise_scale")->value_or(20.0f);
+            star_params.animation_speed =
+                star_table->get("animation_speed")->value_or(0.3f);
+        }
     }
 
 private:

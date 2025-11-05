@@ -20,6 +20,7 @@ class Body {
    private:
     Config& config;
     ShadowMap shadow_map;
+    ShadowMap shadow_map2;
 
    public:
     virtual ~Body() = default;
@@ -30,7 +31,10 @@ class Body {
           position(pos),
           radius(r),
           icosahedronMesh(icosahedron_mesh),
-          shadow_map(config) {}
+          shadow_map(config),
+          shadow_map2(config) {
+        color = config.body_fallback_color;
+    }
 
     glm::vec3 getPosition() const { return position; }
     float getRadius() const { return radius; }
@@ -52,23 +56,34 @@ class Body {
         }
     }
 
-    virtual void update(float deltaTime,
-                        glm::vec3 p_light_position = glm::vec3(0.0f)) {
+    /*virtual*/ void update(float deltaTime,
+                            glm::vec3 p_light_position1 = glm::vec3(0.0f), glm::vec3 p_light_position2 = glm::vec3(0.0f)) {
         // Update light matrices for shadow mapping
-        light_position = p_light_position;
-        light_view_matrix =
-            glm::lookAt(light_position, position, glm::vec3(0.0f, 1.0f, 0.0f));
+        light_position1 = p_light_position1;
+        light_view_matrix1 =
+            glm::lookAt(light_position1, position, glm::vec3(0.0f, 1.0f, 0.0f));
         glm::vec3 centerLS =
-            glm::vec3(light_view_matrix * glm::vec4(position, 1.0f));
+            glm::vec3(light_view_matrix1 * glm::vec4(position, 1.0f));
         float near_plane = std::max(0.1f, -centerLS.z - radius * 2.0f);
-        // near_plane = 0.1f;
         float far_plane = -centerLS.z + radius * 2.0f;
-        // far_plane = 100.0f;
 
-        light_projection_matrix =
+        light_projection_matrix1 =
+            glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f,
+                       radius * 2.0f, near_plane, far_plane);
+        
+        light_position2 = p_light_position2;
+        light_view_matrix2 =
+            glm::lookAt(light_position2, position, glm::vec3(0.0f, 1.0f, 0.0f));
+        centerLS =
+            glm::vec3(light_view_matrix2 * glm::vec4(position, 1.0f));
+        near_plane = std::max(0.1f, -centerLS.z - radius * 2.0f);
+        far_plane = -centerLS.z + radius * 2.0f;
+
+        light_projection_matrix2 =
             glm::ortho(-radius * 2.0f, radius * 2.0f, -radius * 2.0f,
                        radius * 2.0f, near_plane, far_plane);
 
+        
         // Update body state based on deltaTime
         if (parent == nullptr) {
             position = glm::vec3(0.0f);  // no orbiting if no parent
@@ -125,11 +140,14 @@ class Body {
                       param_large_radius, param_orbit_normal,
                       param_orbit_period, parent);
         }
+        ImGui::ColorEdit3("Fallback Color", glm::value_ptr(color));
     }
 
     virtual void set_uniforms() {  // this assumes the shader is already bound
         glUniform1f(shader.getUniformLocation("radius"), radius);
         glUniform1f(shader.getUniformLocation("test"), test);
+        glUniform3fv(shader.getUniformLocation("body_color"), 1,
+                     glm::value_ptr(color));
     }
 
     virtual bool needs_shadow_map() { return false; }
@@ -144,12 +162,21 @@ class Body {
                            glm::value_ptr(modelMatrix));
 
         glUniformMatrix4fv(shader.getUniformLocation("view"), 1, GL_FALSE,
-                           glm::value_ptr(light_view_matrix));
+                           glm::value_ptr(light_view_matrix1));
         glUniformMatrix4fv(shader.getUniformLocation("projection"), 1, GL_FALSE,
-                           glm::value_ptr(light_projection_matrix));
+                           glm::value_ptr(light_projection_matrix1));
         glUniform1i(shader.getUniformLocation("only_depth"), 1);
         set_uniforms();
 
+        icosahedronMesh.drawPatches(shader);
+
+        shadow_map2.bind_for_writing();
+        
+        glUniformMatrix4fv(shader.getUniformLocation("view"), 1, GL_FALSE,
+                           glm::value_ptr(light_view_matrix2));
+
+        glUniformMatrix4fv(shader.getUniformLocation("projection"), 1, GL_FALSE,
+                           glm::value_ptr(light_projection_matrix2));
         icosahedronMesh.drawPatches(shader);
     }
 
@@ -169,16 +196,24 @@ class Body {
         glUniform3fv(shader.getUniformLocation("planet_center"), 1,
                      glm::value_ptr(position));
         glUniform1i(shader.getUniformLocation("only_depth"), 0);
-        glUniformMatrix4fv(shader.getUniformLocation("lightViewMatrix"), 1,
-                           GL_FALSE, glm::value_ptr(light_view_matrix));
-        glUniformMatrix4fv(shader.getUniformLocation("lightProjectionMatrix"),
+        glUniformMatrix4fv(shader.getUniformLocation("lightViewMatrix1"), 1,
+                           GL_FALSE, glm::value_ptr(light_view_matrix1));
+        glUniformMatrix4fv(shader.getUniformLocation("lightProjectionMatrix1"),
                            1, GL_FALSE,
-                           glm::value_ptr(light_projection_matrix));
-        glUniform3fv(shader.getUniformLocation("lightPosition"), 1,
-                     glm::value_ptr(light_position));
+                           glm::value_ptr(light_projection_matrix1));
+        glUniform3fv(shader.getUniformLocation("lightPosition1"), 1,
+                     glm::value_ptr(light_position1));
+        glUniformMatrix4fv(shader.getUniformLocation("lightViewMatrix2"), 1,
+                           GL_FALSE, glm::value_ptr(light_view_matrix2));
+        glUniformMatrix4fv(shader.getUniformLocation("lightProjectionMatrix2"),
+                           1, GL_FALSE, glm::value_ptr(light_projection_matrix2));
+        glUniform3fv(shader.getUniformLocation("lightPosition2"), 1,
+                     glm::value_ptr(light_position2));
 
         shadow_map.bind_for_reading(GL_TEXTURE5);
-        glUniform1i(shader.getUniformLocation("shadowMap"), 5);
+        glUniform1i(shader.getUniformLocation("shadowMap1"), 5);
+        shadow_map2.bind_for_reading(GL_TEXTURE6);
+        glUniform1i(shader.getUniformLocation("shadowMap2"), 6);
 
         set_uniforms();
 
@@ -187,9 +222,22 @@ class Body {
 
     void set_orbit(const glm::vec3& direction, float small_r, float large_r,
                    const glm::vec3& normal, float period, Body* parent_body) {
+        // Sanitize inputs
         orbitNormal = glm::normalize(normal);
+        if (glm::length(normal) < 1e-6f) {
+            orbitNormal = glm::vec3(0.0f, 1.0f, 0.0f);
+            std::cout
+                << "Warning: Orbit normal was zero vector, reset to (0,1,0)."
+                << std::endl;
+        }
         orbit_direction = glm::normalize(
             direction - glm::dot(direction, orbitNormal) * orbitNormal);
+        if (glm::length(orbit_direction) < 1e-6f) {
+            orbit_direction = glm::vec3(1.0f, 0.0f, 0.0f);
+            std::cout << "Warning: Orbit direction was parallel to orbit "
+                         "normal, reset to (1,0,0)."
+                      << std::endl;
+        }
         smallRadius = small_r;
         largeRadius = large_r;
         orbitPeriod = period;
@@ -230,7 +278,13 @@ class Body {
     float param_orbit_period = 1.0f;
 
     // light params
-    glm::mat4 light_view_matrix;
-    glm::vec3 light_position;
-    glm::mat4 light_projection_matrix;
+    glm::mat4 light_view_matrix1;
+    glm::vec3 light_position1;
+    glm::mat4 light_projection_matrix1;
+    glm::mat4 light_view_matrix2;
+    glm::vec3 light_position2;
+    glm::mat4 light_projection_matrix2;
+
+    // default body params
+    glm::vec3 color{0.3f, 0.3f, 1.0f};
 };
