@@ -191,12 +191,6 @@ void main()
     float noise_val = coloreh(vec4(spherePosition * noise_scale, time * animation_speed));
 
     // interpolate colors based on noise value
-    // TODO: maybe with materials, or at least uniforms.
-    // vec3 c0 = vec3(0.5, 0.0, 0.0); // #800000
-    // vec3 c1 = vec3(1.0, 0.5, 0.0); // #FF8000
-    // vec3 c2 = vec3(1.0, 1.0, 1.0); // #FFFFFF
-
-    
     vec3 c0 = star_color_intensity.rgb / 2;
     vec3 c1 = star_color_intensity.rgb;
     vec3 c2 = vec3(1.0, 1.0, 1.0);

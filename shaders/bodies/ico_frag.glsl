@@ -74,7 +74,7 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
         // Angle between sun and body
         float angleBetween = acos(dot(normalize(toLight), normalize(toBody)));
 
-        // TODO: eclipse logic could be improved with umbra/penumbra model, but good enough for now
+        // eclipse logic could be improved with umbra/penumbra model, but good enough for now
         // Check for overlap
         if (angleBetween < (bodyAngle + sunAngle)) {
             // Fractional coverage approximation

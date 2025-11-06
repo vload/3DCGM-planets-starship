@@ -95,17 +95,6 @@ class Body {
             position = glm::vec3(0.0f);  // no orbiting if no parent
             return;                      // no orbiting if no parent
         }
-        // Focal distance: distance from ellipse center to focus (parent)
-        float focalDistance =
-            glm::sqrt(largeRadius * largeRadius - smallRadius * smallRadius);
-
-        // Unit axes in the orbital plane
-        glm::vec3 majorAxis = glm::normalize(orbit_direction);
-        glm::vec3 minorAxis =
-            glm::normalize(glm::cross(orbitNormal, majorAxis));
-
-        // The ellipse center is offset from the parent along orbit_direction
-        glm::vec3 center = parent->getPosition() + focalDistance * majorAxis;
 
         // Advance orbit angle at constant angular speed
         float angularSpeed =
@@ -114,9 +103,33 @@ class Body {
         if (orbitAngle > 2.0f * glm::pi<float>())
             orbitAngle -= 2.0f * glm::pi<float>();
 
-        // Compute position on the ellipse
-        position = center + largeRadius * glm::cos(orbitAngle) * majorAxis +
-                   smallRadius * glm::sin(orbitAngle) * minorAxis;
+        // Focal distance: distance from ellipse center to focus (parent)
+        float focalDistance =
+            glm::sqrt(largeRadius * largeRadius - smallRadius * smallRadius);
+
+        // Translate along major axis to center the ellipse relative to parent
+        glm::vec3 majorAxis = glm::normalize(orbit_direction);
+        glm::vec3 minorAxis =
+            glm::normalize(glm::cross(orbitNormal, majorAxis));
+
+        // Ellipse center offset
+        glm::vec3 centerOffset = focalDistance * majorAxis;
+        glm::mat4 model = glm::translate(parent->get_model_matrix(), centerOffset);
+
+        // Rotate around orbit normal
+        glm::mat4 R_orbit =
+            glm::rotate(glm::mat4(1.0f), orbitAngle, orbitNormal);
+
+        // Advance orbit angle 
+        float x = largeRadius * glm::cos(orbitAngle);
+        float y = smallRadius * glm::sin(orbitAngle);
+
+        // Translate along the axes of the ellipse
+        glm::vec3 orbitOffset = x * majorAxis + y * minorAxis;
+        model = glm::translate(model, orbitOffset);
+
+        // Update world position
+        position = glm::vec3(model * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
     }
 
     glm::mat4 get_model_matrix() const {

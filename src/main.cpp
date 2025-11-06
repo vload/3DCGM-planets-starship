@@ -122,8 +122,6 @@ int main(int argc, char** argv) {
 
     Camera* active_camera = &freecam;
 
-    // TODO: minimap camera
-
     glm::mat4 projection_matrix = glm::perspective(
         glm::radians(config.camera_fov_degrees),
         static_cast<float>(WIDTH_WINDOW) / static_cast<float>(HEIGHT_WINDOW),
@@ -134,8 +132,6 @@ int main(int argc, char** argv) {
             static_cast<float>(newSize.x) / static_cast<float>(newSize.y), 0.1f,
             1000.0f);
     });
-    // TODO: we might need other projection matrices for other cameras (minimap)
-
     /// ---- Scene setup
     /// -- Planets
     PlanetSystem planet_system(config);
@@ -168,7 +164,6 @@ int main(int argc, char** argv) {
         });
 
     /// ---- Other setup
-    // TODO : ????
 
     /// -- Timing
     double last_time = glfwGetTime();
