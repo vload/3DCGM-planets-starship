@@ -89,5 +89,5 @@ path_points_list = [
 [shadows]
 enable_eclipse_shadows = true
 enable_shaddow_mapping_planets = true
-shadow_map_size = 8192
+shadow_map_size = 2048
 
