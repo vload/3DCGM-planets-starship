@@ -165,9 +165,7 @@ void Battlecruiser::draw(const glm::mat4 &view,
                          unsigned int cubemapTexture,
                          PlanetSystem& planetSystem) {
 
-    // TODO Need to add light correction
-    // glm::vec3 lightColor = glm::vec3(4.0f);
-    const float exposure_multiplier = 10.0f;
+    const float exposure_multiplier = 4.0f;
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -179,8 +177,6 @@ void Battlecruiser::draw(const glm::mat4 &view,
                        glm::value_ptr(getModelMatrix()));
     glUniformMatrix4fv(mainShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(mainShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    // glUniform3fv(mainShader.getUniformLocation("lightPos"), 1, glm::value_ptr(lightPos));
-    // glUniform3fv(mainShader.getUniformLocation("lightColor"), 1, glm::value_ptr(lightColor));
     glUniform3fv(mainShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
     // Set eclipse and shadow mapping settings and light information

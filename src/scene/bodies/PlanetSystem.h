@@ -165,10 +165,7 @@ class PlanetSystem {
 
     std::pair<glm::vec3, glm::vec3> getBinaryStarPositions() const {
          if (!is_binary_system) {
-            for (Body* body : bodies) {
-                // assume sun is bodies[0]
-                return {bodies[0]->getPosition(), glm::vec3(0.0f)};
-            }
+            return {bodies[0]->getPosition(), glm::vec3(0.0f)};
         }
 
         // max two stars are light sources

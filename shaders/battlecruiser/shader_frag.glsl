@@ -185,8 +185,6 @@ void main()
     float metallic = texture(textureMetallic, fragTexCoord).r;
     float roughness = texture(textureRoughness, fragTexCoord).r;
 
-    baseColor = pow(baseColor, vec3(2.2)); // convert from sRGB to linear space
-
     normalMap = normalize(tbn * (normalMap * 2.0 - 1.0));
     vec3 L1 = normalize(lightPosition1 - fragWorldPos);
     vec3 N = normalMap;
@@ -207,10 +205,11 @@ void main()
         resultColorPbr = diffuse1 + specular1;
     }
 
-    vec3 hdrColor = vec3(0.0);
+    vec3 ambient = 0.1 * baseColor;
+    vec3 finalColor = ambient;
     float shadowMultiplier1 = 1.0 - shadow_calculation(fragWorldPos, normalMap, L1, lightViewMatrix1, lightProjectionMatrix1, shadowMap1);
 
-    hdrColor += (eclipseLightFactor1 * shadowMultiplier1) * sunColInt[0].rgb * sunColInt[0].w * dotProduct(L1, N) * resultColorPbr * exposure;
+    finalColor += (eclipseLightFactor1 * shadowMultiplier1) * sunColInt[0].rgb * sunColInt[0].w * dotProduct(L1, N) * resultColorPbr * exposure;
 
     if(binary_system == 1) {
         vec3 resultColorPbr2 = baseColor;
@@ -232,11 +231,10 @@ void main()
 
         float shadowMultiplier2 = 1.0 - shadow_calculation(fragWorldPos, normalMap, L2, lightViewMatrix2, lightProjectionMatrix2, shadowMap2);
 
-
-        hdrColor += (eclipseLightFactor2 * shadowMultiplier2) * sunColInt[1].rgb * sunColInt[1].w * dotProduct(L2, N) * resultColorPbr2 * exposure;
+        finalColor += (eclipseLightFactor2 * shadowMultiplier2) * sunColInt[1].rgb * sunColInt[1].w * dotProduct(L2, N) * resultColorPbr2 * exposure;
     }
-    // No tone mapping or gamma correction, because our desired effect is to have very bright highlights
-    outColor = vec4(hdrColor, 1.0);
+    
+    outColor = vec4(finalColor, 1.0);
     } else {
         // do nothing for depth-only pass
     }
