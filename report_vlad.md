@@ -119,7 +119,9 @@ Celestial bodies are stored in a list, but each body also has a pointer to its p
 
 For simplicity, we do not update the bodies using a topological sort, instead we just update them in the order they are stored in the list. This means that there is a lag in the position update of child bodies, but this is negligible for our purposes.
 
-The orbits are eliptical, with the parent being at one of the foci. The orbital parameters (major radius(`imgui: large radius`), minor radius(`imgui: small radius`), direction (`imgui: orbit direction`) and normal(of the orbital plane)(`imgui: orbit normal`) are configurable.
+There is an imgui slidder to select a body to view and edit its parameters(`imgui: Selected Body`).
+
+The orbits are eliptical, with the parent being at one of the foci. The orbital parameters (major radius (`imgui: large radius`), minor radius (`imgui: small radius`), direction (`imgui: orbit direction`) and normal (of the orbital plane) (`imgui: orbit normal`)) are configurable for the selected planet.
 
 The whole solar system can be set up in the toml config file(`toml:planets.planets_info`), where each body has a type, parent, and optional orbit parameters like in the example below:
 ```toml
@@ -139,6 +141,10 @@ planets_info = [
 
 We also have the option of creating binary star systems using null bodies as orbital anchors. The binary flag(`toml:planets.binary_system`) is used for shadow and lighting calulations (explained below). Otherwise, only the first star in the bodies list is considered for lighting calculations, but many stars can be rendered. The null body type is used for orbital anchoring, it is not rendered, but can be used as a parent for other bodies. This is useful for creating binary star systems where the stars orbit a null body.
 
+Additionally, we have buttons to add earths and default bodies to the solar system at runtime(`imgui: Add Earth`, `imgui: Add Default Body`). These bodies are added as children of the currently selected body, and they get selected automatically, so their orbital parameters can be edited right away.
+
+Another configurable attribute is a time multiplier(`imgui: time warp`) which speeds up or slows down the planets simulation time. This is useful for observing the orbits of bodies in the solar system.
+
 ### Lighting and Shading
 
 **Eclipses**
@@ -150,6 +156,8 @@ We implement eclipses for both single and binary star systems(`imgui:enable ecli
 | ![No Eclipse](screenshots/no_eclipse.png) | ![Eclipse](screenshots/eclipse.png)  | ![Eclipse Earth](screenshots/eclipse_generated.png) |
 
 *Figure 8: Comparison of eclipse settings.*
+
+*Note:* Stars can eclipse each other in binary star systems, so do not be surprised if a star does not light an object when another star passes in front of it!
 
 **Star lights (shadow mapping)**
 

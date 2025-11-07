@@ -43,7 +43,7 @@ public:
         forward = glm::normalize(config.freecam_initial_forward);
     }
 
-    void update_input(){
+    void update_input(float delta_time) {
         if(!user_interaction){
             previous_cursor_position = window.getCursorPos();
             return;
@@ -54,17 +54,17 @@ public:
         glm::vec3 localMoveDelta { 0 };
         const glm::vec3 right = glm::normalize(glm::cross(forward, up));
         if (window.isKeyPressed(GLFW_KEY_A))
-            position -= move_speed * right;
+            position -= move_speed * right * delta_time;
         if (window.isKeyPressed(GLFW_KEY_D))
-            position += move_speed * right;
+            position += move_speed * right * delta_time;
         if (window.isKeyPressed(GLFW_KEY_W))
-            position += move_speed * forward;
+            position += move_speed * forward * delta_time;
         if (window.isKeyPressed(GLFW_KEY_S))
-            position -= move_speed * forward;
+            position -= move_speed * forward * delta_time;
         if (window.isKeyPressed(GLFW_KEY_R))
-            position += move_speed * up;
+            position += move_speed * up * delta_time;
         if (window.isKeyPressed(GLFW_KEY_F))
-            position -= move_speed * up;
+            position -= move_speed * up * delta_time;
 
         // looking around
         const glm::dvec2 cursor_position = window.getCursorPos();

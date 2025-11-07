@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         config_path = argv[1];
     }
 
-    // config_path = RESOURCE_ROOT "configurations/binary.toml";
+    // config_path = RESOURCE_ROOT "configurations/demo.toml";
 
     //// -------- Setup:
     /// ---- Load configuration
@@ -180,7 +180,7 @@ int main(int argc, char** argv) {
         /// -- Update inputs
         window.updateInput();
         /// -- Update cameras
-        freecam.update_input();
+        freecam.update_input(static_cast<float>(delta_time));
         // -- Update battlecruiser
         battlecruiser.updatePosition(static_cast<float>(delta_time));
         // -- Update battlecruiser camera
