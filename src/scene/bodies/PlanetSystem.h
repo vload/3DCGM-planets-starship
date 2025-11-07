@@ -123,8 +123,8 @@ class PlanetSystem {
         ImGui::DragFloat("Gamma (brightness)", &gamma, 0.1f, 1.0f, 5.0f);
         ImGui::Checkbox("Body Tessellation", &enable_body_tessellation);
         ImGui::DragFloat("Target Body Tessellation Triangle Height",
-                         &target_body_tessellation_triangle_height, 0.1f, 1.0f,
-                         20.0f);
+                         &target_body_tessellation_triangle_height, 10.0f, 1.0f,
+                         500.0f);
         ImGui::Checkbox("Enable Eclipse", &enable_eclipse);
         ImGui::Checkbox("Enable Shadowmapping", &enable_shadowmapping);
         ImGui::Checkbox("Enable PCF", &enable_PCF);

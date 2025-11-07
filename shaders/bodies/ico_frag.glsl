@@ -78,7 +78,8 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
         // Check for overlap
         if (angleBetween < (bodyAngle + sunAngle)) {
             // Fractional coverage approximation
-            float overlap = 1.0 - smoothstep(sunAngle - bodyAngle, sunAngle + bodyAngle, angleBetween);
+            // float overlap = 1.0 - smoothstep(sunAngle - bodyAngle, sunAngle + bodyAngle, angleBetween);
+            float overlap = clamp((bodyAngle + sunAngle - angleBetween) / (2.0 * sunAngle), 0.0, 1.0);
             covered = 1.0 - (1.0 - covered) * (1.0 - overlap);
         }
     }

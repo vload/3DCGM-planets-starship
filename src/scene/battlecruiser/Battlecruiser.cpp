@@ -283,6 +283,8 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
 
+    glEnable(GL_CULL_FACE);
+
     // --- Pass 3: Thruster Light ---
     if (showLightParticles) {
         static std::default_random_engine rng(std::random_device{}());

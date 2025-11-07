@@ -50,13 +50,13 @@ public:
     }
 
     void update_input() {
+        glm::vec3 target = glm::vec3(battlecruiser.getModelMatrix()[3]);
+        position = target - forward * offset;
+        
         if (!user_interaction) {
             previous_cursor_position = window.getCursorPos();
             return;
         }
-
-        glm::vec3 target = glm::vec3(battlecruiser.getModelMatrix()[3]);
-        position = target - forward * offset;
 
         // looking around
         const glm::dvec2 cursor_position = window.getCursorPos();
