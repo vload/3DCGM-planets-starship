@@ -47,6 +47,8 @@ public:
 
     glm::vec3 getPosition() const;
 
+    bool getShowParticles();
+
     float getSpeed() const;
 
     std::vector<glm::vec3> getBezierSampledPoints();
@@ -57,6 +59,10 @@ private:
     BezierPath bezierPath;
 
     bool isFollowingPath = false;
+    bool showParticles = true;
+    bool showLightParticles = true;
+    bool usePBRShader = true;
+    bool useEnvironmentMap = true;
 
     glm::vec3 position = glm::vec3(0.0f, 0.0f, 0.0f);
     glm::vec3 velocity = glm::vec3(0.0f, 0.0f, 1.0f);
@@ -72,10 +78,10 @@ private:
         glm::vec3(-0.022f, -0.372f, -2.04f),
     };
 
-    float radius = 0.5f;
+    float radius = 0.88f;
     int nrLights = 10;
-    float thrusterRadius = 0.5f;
-    float thrusterIntensity = 1.0f;
+    float thrusterRadius = 0.88f;
+    float thrusterIntensity = 0.014f;
 
     Shader mainShader;
     Shader reflectiveShader;

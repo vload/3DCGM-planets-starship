@@ -1,6 +1,6 @@
 #version 410 core
 
-layout (location = 0) in vec3 aPos;
+layout (location = 0) in vec3 position;
 
 out vec3 texCoords;
 
@@ -8,7 +8,7 @@ out vec3 texCoords;
 uniform mat4 mvp;
 
 void main() {
-	vec4 pos = mvp * vec4(aPos, 1.0f);
+	vec4 pos = mvp * vec4(position, 1.0f);
 	gl_Position = pos.xyww;
-	texCoords = aPos;
+	texCoords = position;
 }

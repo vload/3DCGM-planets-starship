@@ -167,7 +167,7 @@ void Battlecruiser::draw(const glm::mat4 &view,
 
     // TODO Need to add light correction
     // glm::vec3 lightColor = glm::vec3(4.0f);
-    const float exposure_multiplier = 4.0f;
+    const float exposure_multiplier = 10.0f;
 
     // Disable face culling to render inside the windows
     glDisable(GL_CULL_FACE);
@@ -227,6 +227,8 @@ void Battlecruiser::draw(const glm::mat4 &view,
     battlecruiserShadowMap2.bind_for_reading(GL_TEXTURE6);
     glUniform1i(mainShader.getUniformLocation("shadowMap2"), 6);
 
+    glUniform1i(mainShader.getUniformLocation("usePBRShader"), usePBRShader);
+
     // Draw all opaque meshes that use the main shader
     for (const auto &m: meshGLs) {
         if (m.materialName != "Panel-10") {
@@ -251,6 +253,7 @@ void Battlecruiser::draw(const glm::mat4 &view,
         }
     }
 
+
     glEnable(GL_DEPTH_TEST);
     glDepthFunc(GL_LEQUAL);
     glDepthMask(GL_FALSE);
@@ -262,6 +265,8 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(reflectiveShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
     glUniform3fv(reflectiveShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+
+    glUniform1i(reflectiveShader.getUniformLocation("useEnvironmentMap"), useEnvironmentMap);
 
     for (const auto &m: meshGLs) {
         if (m.materialName == "Panel-10") {
@@ -283,39 +288,41 @@ void Battlecruiser::draw(const glm::mat4 &view,
     glDepthMask(GL_FALSE);
 
     // --- Pass 3: Thruster Light ---
-    static std::default_random_engine rng(std::random_device{}());
-    static std::uniform_real_distribution<float> flickerDist(-0.01f, 0.01f);
+    if (showLightParticles) {
+        static std::default_random_engine rng(std::random_device{}());
+        static std::uniform_real_distribution<float> flickerDist(-0.01f, 0.01f);
 
-    std::uniform_int_distribution<int> distR(233.0f, 255.f);
-    std::uniform_int_distribution<int> distG(165.0f, 255.f);
+        std::uniform_int_distribution<int> distR(233.0f, 255.f);
+        std::uniform_int_distribution<int> distG(165.0f, 255.f);
 
-    glm::vec3 lightThrusterPos = glm::vec3(-0.02f, -0.147f, -2.2f);
-    glm::vec3 lightThrusterColor = glm::vec3(static_cast<unsigned char>(distR(rng)), static_cast<unsigned char>(distG(rng)), 0.0f);
-    glm::vec3 thrusterDir = getDirectionVector();
+        glm::vec3 lightThrusterPos = glm::vec3(-0.02f, -0.147f, -2.2f);
+        glm::vec3 lightThrusterColor = glm::vec3(static_cast<unsigned char>(distR(rng)), static_cast<unsigned char>(distG(rng)), 0.0f);
+        glm::vec3 thrusterDir = getDirectionVector();
 
-    float randomOffset = flickerDist(rng);
-    float flickeringRadius = thrusterRadius + randomOffset;
+        float randomOffset = flickerDist(rng);
+        float flickeringRadius = thrusterRadius + randomOffset;
 
-    thrusterShader.bind();
-    glUniformMatrix4fv(thrusterShader.getUniformLocation("model"), 1, GL_FALSE,
-                       glm::value_ptr(getModelMatrix()));
-    glUniformMatrix4fv(thrusterShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
-    glUniformMatrix4fv(thrusterShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
-    glUniform3fv(thrusterShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
+        thrusterShader.bind();
+        glUniformMatrix4fv(thrusterShader.getUniformLocation("model"), 1, GL_FALSE,
+                           glm::value_ptr(getModelMatrix()));
+        glUniformMatrix4fv(thrusterShader.getUniformLocation("view"), 1, GL_FALSE, glm::value_ptr(view));
+        glUniformMatrix4fv(thrusterShader.getUniformLocation("projection"), 1, GL_FALSE, glm::value_ptr(projection));
+        glUniform3fv(thrusterShader.getUniformLocation("cameraPos"), 1, glm::value_ptr(cameraPos));
 
-    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(lightThrusterPos));
-    glUniform3fv(thrusterShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(lightThrusterColor));
-    glUniform3fv(thrusterShader.getUniformLocation("thrusterDir"), 1, glm::value_ptr(thrusterDir));
+        glUniform3fv(thrusterShader.getUniformLocation("thrusterLightPos"), 1, glm::value_ptr(lightThrusterPos));
+        glUniform3fv(thrusterShader.getUniformLocation("thrusterLightColor"), 1, glm::value_ptr(lightThrusterColor));
+        glUniform3fv(thrusterShader.getUniformLocation("thrusterDir"), 1, glm::value_ptr(thrusterDir));
 
-    glUniform1f(thrusterShader.getUniformLocation("radius"), radius);
-    glUniform1i(thrusterShader.getUniformLocation("nrLights"), nrLights);
-    glUniform1f(thrusterShader.getUniformLocation("thrusterRadius"), flickeringRadius);
-    glUniform1f(thrusterShader.getUniformLocation("thrusterIntensity"), thrusterIntensity);
+        glUniform1f(thrusterShader.getUniformLocation("radius"), radius);
+        glUniform1i(thrusterShader.getUniformLocation("nrLights"), nrLights);
+        glUniform1f(thrusterShader.getUniformLocation("thrusterRadius"), flickeringRadius);
+        glUniform1f(thrusterShader.getUniformLocation("thrusterIntensity"), thrusterIntensity);
 
 
-    for (const auto &m: meshGLs) {
-        glBindVertexArray(m.vao);
-        glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
+        for (const auto &m: meshGLs) {
+            glBindVertexArray(m.vao);
+            glDrawElements(GL_TRIANGLES, static_cast<GLsizei>(m.indexCount), GL_UNSIGNED_INT, nullptr);
+        }
     }
 }
 
@@ -452,6 +459,10 @@ glm::vec3 Battlecruiser::getUpVector() {
     return glm::normalize(upVector);
 }
 
+bool Battlecruiser::getShowParticles() {
+    return showParticles;
+}
+
 void Battlecruiser::imGuiControl() {
     ImGui::Separator();
     ImGui::Text("Battlecruiser Movement");
@@ -460,11 +471,17 @@ void Battlecruiser::imGuiControl() {
     }
 
     ImGui::Separator();
-    ImGui::Text("Battlecruiser Light Panel");
-    ImGui::DragFloat("Radius", &radius, 0.01f);
-    ImGui::DragInt("Nr Lights", &nrLights, 1);
-    ImGui::DragFloat("Thruster radius", &thrusterRadius, 0.01f);
-    ImGui::DragFloat("Thruster intensity", &thrusterIntensity, 0.01f);
+    ImGui::Text("Battlecruiser Particles");
+    ImGui::Checkbox("Show Particles", &showParticles);
+    ImGui::Checkbox("Show Light Particles", &showLightParticles);
+
+    ImGui::Separator();
+    ImGui::Text("Battlecruiser Shaders");
+    ImGui::Checkbox("Show PBR Shader", &usePBRShader);
+    ImGui::Checkbox("Use environment map", &useEnvironmentMap);
+
+    ImGui::Separator();
+    ImGui::Text("Something");
 }
 
 std::vector<glm::vec3> Battlecruiser::getBezierSampledPoints() {

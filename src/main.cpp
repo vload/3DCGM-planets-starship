@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         config_path = argv[1];
     }
 
-    // config_path = RESOURCE_ROOT "configurations/binary.toml";
+    config_path = RESOURCE_ROOT "configurations/binary.toml";
 
     //// -------- Setup:
     /// ---- Load configuration
@@ -221,6 +221,12 @@ int main(int argc, char** argv) {
 
             /// -- ImGui Battlecruiser Particles controls
             particles.imGuiControl();
+
+            /// -- ImGui Minimap controls
+            minimap.imGuiControl();
+
+            /// -- ImGui Skybox controls
+            skybox.imGuiControl();
         }
 
         ImGui::End();

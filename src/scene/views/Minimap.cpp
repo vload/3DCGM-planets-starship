@@ -85,6 +85,10 @@ void Minimap::initBuffers() {
 }
 
 void Minimap::draw(const std::vector<Body*>& bodies, const std::vector<glm::vec3>& positionPoints, glm::vec3 positionBattleCruiser) {
+    if (!displayMinimap) {
+        return;
+    }
+
     std::vector<Object> planets = convertBodyToObjects(bodies);
 
     glBindFramebuffer(GL_FRAMEBUFFER, minimapFrameBuffer);
@@ -145,6 +149,10 @@ void Minimap::draw(const std::vector<Body*>& bodies, const std::vector<glm::vec3
 }
 
 void Minimap::drawToScreen(int windowWidth, int windowHeight) {
+    if (!displayMinimap) {
+        return;
+    }
+
     glDisable(GL_DEPTH_TEST);
 
     int mapSize = 512;
@@ -162,5 +170,11 @@ void Minimap::drawToScreen(int windowWidth, int windowHeight) {
 
     // Restore viewport to full window
     glViewport(0, 0, windowWidth, windowHeight);
+}
+
+void Minimap::imGuiControl() {
+    ImGui::Separator();
+    ImGui::Text("Minimap Control");
+    ImGui::Checkbox("Display minimap", &displayMinimap);
 }
 

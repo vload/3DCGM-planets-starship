@@ -27,6 +27,7 @@ public:
     void initBuffers();
     void draw(const std::vector<Body*>& bodies, const std::vector<glm::vec3>& positionPoints, glm::vec3 positionBattleCruiser);
     void drawToScreen(int windowWidth, int windowHeight);
+    virtual void imGuiControl();
 
 private:
     GLuint vao;
@@ -39,6 +40,8 @@ private:
 
     Shader minimapShader;
     Shader minimapScreenShader;
+
+    bool displayMinimap = true;
 
     static std::vector<Object> convertBodyToObjects(const std::vector<Body*>& bodies) {
         std::vector<Object> objects;

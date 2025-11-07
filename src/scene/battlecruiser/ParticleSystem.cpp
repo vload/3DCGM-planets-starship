@@ -137,6 +137,10 @@ void ParticleSystem::spawn_per_location(const glm::vec3 &origin) {
 }
 
 void ParticleSystem::spawn_stage(float dt) {
+    if (!battlecruiser.getShowParticles()) {
+        return;
+    }
+
     float particlesPerSecond = 1000.0f;
     int newParticles =
             static_cast<int>(dt * particlesPerSecond);
@@ -152,6 +156,10 @@ void ParticleSystem::spawn_stage(float dt) {
 }
 
 void ParticleSystem::update_stage(float dt, const glm::vec3 &camPos) {
+    if (!battlecruiser.getShowParticles()) {
+        return;
+    }
+
     for (auto &p: _particles) {
         if (p.life > 0.0f) {
             p.life -= dt;
@@ -196,6 +204,10 @@ void ParticleSystem::update_stage(float dt, const glm::vec3 &camPos) {
 }
 
 void ParticleSystem::draw_stage(const glm::mat4 &view, const glm::mat4 &projection) {
+    if (!battlecruiser.getShowParticles()) {
+        return;
+    }
+
     glm::vec3 camRight(view[0][0], view[1][0], view[2][0]);
     glm::vec3 camUp(view[0][1], view[1][1], view[2][1]);
 
@@ -234,6 +246,10 @@ void ParticleSystem::draw_stage(const glm::mat4 &view, const glm::mat4 &projecti
 }
 
 void ParticleSystem::update(const glm::vec3 &camPos, const float dt) {
+    if (!battlecruiser.getShowParticles()) {
+        return;
+    }
+
     float battlecruiserSpeed = battlecruiser.getSpeed();
 
     size = glm::mix(0.02f, 0.04f, battlecruiserSpeed / 3);
