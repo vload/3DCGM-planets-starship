@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         config_path = argv[1];
     }
 
-    // config_path = RESOURCE_ROOT "configurations/demo.toml";
+    config_path = RESOURCE_ROOT "configurations/demo.toml";
 
     //// -------- Setup:
     /// ---- Load configuration
@@ -246,10 +246,10 @@ int main(int argc, char** argv) {
 
             /// -- Pass #4 and #5: Render Battlecruiser Mesh
             reset_opengl_state();
-            battlecruiser.draw(
-                active_camera->get_view_matrix(), projection_matrix,
-                glm::vec3(0.0f, 0.0f, 0.0f), active_camera->get_position(),
-                skybox.getCubemapTexture(), planet_system);
+            battlecruiser.draw(active_camera->get_view_matrix(),
+                               projection_matrix, glm::vec3(0.0f, 0.0f, 0.0f),
+                               active_camera->get_position(),
+                               skybox.getCubemapTexture(), planet_system);
 
             /// -- Pass #6: Render battlecruiser Bezier Path
             reset_opengl_state();
@@ -263,7 +263,9 @@ int main(int argc, char** argv) {
 
             // Pass #9: Render minimap scene into its FBO
             reset_opengl_state();
-            minimap.draw(planet_system.getBodies(), battlecruiser.getBezierSampledPoints(), battlecruiser.getPosition());
+            minimap.draw(planet_system.getBodies(),
+                         battlecruiser.getBezierSampledPoints(),
+                         battlecruiser.getPosition());
 
             // Pass #10: Draw minimap FBO as overlay
             reset_opengl_state();
