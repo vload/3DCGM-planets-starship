@@ -479,9 +479,6 @@ void Battlecruiser::imGuiControl() {
     ImGui::Text("Battlecruiser Shaders");
     ImGui::Checkbox("Show PBR Shader", &usePBRShader);
     ImGui::Checkbox("Use environment map", &useEnvironmentMap);
-
-    ImGui::Separator();
-    ImGui::Text("Something");
 }
 
 std::vector<glm::vec3> Battlecruiser::getBezierSampledPoints() {
