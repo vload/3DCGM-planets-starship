@@ -10,7 +10,7 @@ fov = 80 # this is in degrees
 [camera.freecam]
 initial_position = [5.0, 0.0, 0.0]
 initial_forward = [-1.0, 0.0, 0.0]
-move_speed = 0.2
+move_speed = 5.0
 look_speed = 0.005                 # this is basically sensitivity
 # [camera.battlecruiser]
 
@@ -24,6 +24,7 @@ fallback_color = [1.0, 0.3, 0.3]
 binary_system = false
 fallback_ka = 0.1
 fallback_kd = 1.0
+use_star_color = false
 planets_info = [
     # Single default static body (system with only a star)
     ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],

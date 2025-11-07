@@ -49,6 +49,7 @@ class PlanetSystem {
     bool is_binary_system = false;
     bool planet_water_normals_enabled = true;
     bool planet_surface_normals_enabled = true;
+    bool planet_terrain_generation_enabled = true;
     bool sun_texture_enabled = config.enable_star_texture;
     bool use_star_color = config.use_star_color;
 
@@ -130,6 +131,7 @@ class PlanetSystem {
         ImGui::DragInt("PCF Kernel Radius", &PCF_kernel_radius, 1, 0, 10);
         ImGui::Checkbox("Enable Planet Water Normals", &planet_water_normals_enabled);
         ImGui::Checkbox("Enable Planet Surface Normals", &planet_surface_normals_enabled);
+        ImGui::Checkbox("Enable Planet Terrain Generation", &planet_terrain_generation_enabled);
         ImGui::Checkbox("Enable Star Texture / Animation", &sun_texture_enabled);
         ImGui::Checkbox("Use Star Color for Lighting", &use_star_color);
         ImGui::SliderInt("Selected Body", &selected_body, 0,
@@ -254,6 +256,9 @@ class PlanetSystem {
                 glUniform4fv(body->shader.getUniformLocation("sunColInt"),
                              (GLint)sun_col_ints.size(),
                              glm::value_ptr(sun_col_ints[0]));
+                glUniform1i(body->shader.getUniformLocation(
+                                "planet_terrain_generation_enabled"),
+                            planet_terrain_generation_enabled ? 1 : 0);
 
                 glUniform1i(body->shader.getUniformLocation("num_bodies"),
                             (GLint)bodies_pos_rad.size());
@@ -320,6 +325,8 @@ class PlanetSystem {
                         enable_PCF ? 1 : 0);
             glUniform1i(body->shader.getUniformLocation("sun_texture_enabled"),
                         sun_texture_enabled ? 1 : 0);
+            glUniform1i(body->shader.getUniformLocation("planet_terrain_generation_enabled"),
+                        planet_terrain_generation_enabled ? 1 : 0);
 
             body->draw(view_matrix, projection_matrix, camera_position);
         }

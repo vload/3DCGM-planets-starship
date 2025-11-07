@@ -435,7 +435,7 @@ float eclipse_factor(vec3 fragPos, vec4 sunPosRad) {
         // Angle between sun and body
         float angleBetween = acos(dot(normalize(toLight), normalize(toBody)));
 
-        // TODO: eclipse logic could be improved with umbra/penumbra model, but good enough for now
+        // eclipse logic could be improved with umbra/penumbra model, but good enough for now
         // Check for overlap
         if (angleBetween < (bodyAngle + sunAngle)) {
             // Fractional coverage approximation
@@ -528,7 +528,7 @@ void main()
         vec3 waterColor = vec3(0.0, 0.0, 1.0);
         
         // gradient color based on depth
-        // TODO:  (could be uniform params)
+        // (could be uniform params or uniform materials)
         vec3 col1 = vec3(0.933, 0.933, 1.0);   // #EEF
         vec3 col2 = vec3(0.133, 0.333, 0.467); // #257
         vec3 col3 = vec3(0.067, 0.133, 0.267); // #124
@@ -576,7 +576,7 @@ void main()
         fragColor = vec4(mappedColor, 1.0);
     }
     else{
-        //TODO: maybe use materials for this, or at least blinnphong with uniforms
+        // could be materials
         vec3 col;
         vec3 normal = get_surface_normal(spherePosition);
 
@@ -624,8 +624,6 @@ void main()
         } else {
             col = gray; // should not happen
         }
-
-        // TODO: temp phong shading, replace with PBR later
 
         vec3 ambient = surface_ka * col;
         vec3 hdrColor = ambient;

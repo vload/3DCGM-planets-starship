@@ -163,6 +163,8 @@ float get_height(vec3 sphere_pos) {
     return temp; // exaggerate features
 }
 
+uniform int planet_terrain_generation_enabled = 1;
+
 void main()
 {
     vec3 p0 = gl_in[0].gl_Position.xyz;
@@ -177,7 +179,10 @@ void main()
 
     vec3 gradient;
 
-    height = get_height(spherePosition);
+    height = ocean_level;
+
+    if(planet_terrain_generation_enabled == 1)
+        height = get_height(spherePosition);
 
     if(height < ocean_level){
         pos = spherePosition * radius * (1.0 + ocean_level * shape_noise_scale); // flatten ocean surface
