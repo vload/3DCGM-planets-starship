@@ -10,6 +10,8 @@ All planet related -> Vlad
 Battlecruiser related -> Alex
 Shadows and eclipses and light combination -> Vlad
 Skybox and cameras / minimap -> Alex
+Thruster light contribution -> Alex
+Bezier Path -> Alex
 
 # 2. Table of contents
 1. Contributions
