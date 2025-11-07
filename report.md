@@ -5,95 +5,67 @@ Vlad Tudor Stefanescu - 5465877
 
 Alexandru - Cristian Dumitrache - 5487773
 
-## Introduction
+# 1. Contributions
+
+All planet related -> Vlad
+
+Battlecruiser related -> Alex
+
+Shadows and eclipses and light combination -> Vlad
+
+Skybox and cameras / minimap -> Alex
+
+Thruster light contribution -> Alex
+
+Bezier Path -> Alex
+
+# 2. Table of contents
+- [1. Contributions](#1-contributions)
+- [2. Table of contents](#2-table-of-contents)
+- [3. Introduction](#3-introduction)
+- [4. Battlecruiser](#4-battlecruiser)
+    - [4.1 Modelling](#41-modelling)
+    - [4.2 Texturing and Scaling](#42-texturing-and-scaling)
+    - [4.3 OpenGl loading](#43-opengl-loading)
+    - [4.4 PBR Shading](#44-pbr-shading)
+    - [4.5 Shadow Mapping and Eclipse Ray-Tracing](#45-shadow-mapping-and-eclipse-ray-tracing-explained-in-section-6)
+    - [4.6 Environment Mapping Skybox](#46-environment-mapping-skybox)
+    - [4.7 Particles](#47-particles)
+    - [4.8 Light Particles](#48-light-particles)
+    - [4.9 Movement](#49-movement)
+- [5. Solar System](#5-solar-system)
+    - [5.1 Celestial Bodies](#51-celestial-bodies)
+    - [5.2 Tessellation](#52-tessellation)
+    - [5.3 Stars](#53-stars)
+    - [5.4 Stars: Animated textures](#54-stars-animated-textures)
+    - [5.5 Earth Terrain](#55-earth-terrain)
+    - [5.6 Earth Surface Normals](#56-earth-surface-normals)
+    - [5.7 Earth Water](#57-earth-water)
+    - [5.8 Hierarchical transformations](#58-hierarchical-transformations)
+- [6. Lighting and Shading](#6-lighting-and-shading)
+    - [6.1 Eclipses](#61-eclipses)
+    - [6.2 Star lights (shadow mapping)](#62-star-lights-shadow-mapping)
+    - [6.3 Cellestial Body Shading](#63-cellestial-body-shading)
+    - [6.4 Light Combination Battlecruiser](#64-light-combination-battlecruiser)
+    - [6.5 Light Combination / tone mapping Celestial Bodies](#65-light-combination--tone-mapping-celestial-bodies)
+    - [6.6 PBR Shaders](#66-pbr-shaders-explained-in-section-44)
+- [7. Cameras](#7-cameras)
+    - [7.1 Free Camera](#71-free-camera)
+    - [7.2 Camera Following Battlecruiser](#72-camera-following-battlecruiser)
+    - [7.3 Minimap](#73-minimap)
+- [8. Skybox](#8-skybox)
+    - [8.1 Overview and Responsibilities](#81-overview-and-responsibilities)
+    - [8.2 Cubemap Loading](#82-cubemap-loading)
+    - [8.3 Rendering](#83-rendering)
+    - [8.4 Shader Overview](#84-shader-overview)
+- [9. Conclusion](#9-conclusion)
+
+# 3. Introduction
 This report presents the features and implementation details of the 3D Computer Graphics and Modelling (3DCGM) assignment 2. The project focuses on creating a 3D scene conainting a solar system and a spaceship that can navigate through it.
 
-## Features Implemented
-Before diving in, our project uses a toml config file which can be chosen before running the project. We have multiple of these files which are used for different things inside the configurations folder. Configurable parameters in the toml are written like this `toml:param_category.param_name`. ImGUI configurable parameter names are written like this `imgui:param_name`.
+Before diving in, our project uses a toml config file which can be chosen before running the project. We have multiple of these files which are used for different things inside the configurations folder. Configurable parameters in the toml are written like this `toml:param_category.param_name`. ImGUI configurable parameter names are written like this `imgui:param_name`. The config file can be provided as a command line argument, if you do not have a beefy gpu, we recommend you run the project with the `configurations/simple.toml` configuration file. Other interesting configuration files in the folder are `default.toml`, `demo.toml`, and `binary.toml`.
 
-### Solar System
-**Celestial Bodies**
-
-The celestial bodies in our system use a runtime generated mesh of a class I geodesic icosahedron [https://en.wikipedia.org/wiki/Geodesic_polyhedron#Class_I].
-
-This mesh is generated with a frequency (`toml:planets.ico_mesh_resolution`) and then used to render all celestial bodies in our project. The difference made by using a geodesic icosahedron instead of a regular icosahedron is in Figure 1 below.
-
-| Regular Icosahedron          | Geodesic Icosahedron         |
-|:-------------------:|:-------------------:|
-| `geodesic_resolution_1.toml` | `geodesic_resolution_3.toml` |
-| ![Regular Icosahedron](screenshots/regular_icosahedron.png) | ![Geodesic Icosahedron](screenshots/geodesic_icosahedron.png) |
-
-*Figure 1: Comparison between a regular icosahedron and a class I geodesic icosahedron mesh with frequency 3 used for celestial bodies.*
-
-We implement 4 types of celestial bodies (some of which we will go into more depth below):
-- Default body (This is the parent class of all other body types and implements default behaviour. It is used as a placeholder for moons.)
-- Star
-- Earth
-- Null body (not rendered, but used for orbital anchoring)
-
-Default bodies also have basic attributes like position, color(`imgui:Fallback Color`, `toml:planets.fallback_color`), ka(`toml:planets.fallback_ka`), kd(`toml:planets.fallback_kd`), and radius. The radius can also be configured using imgui, or toml (we explain this below). n.b. The color, ka, and kd are not used if the body is a child class of default body.
-
-**Tesselation**
-
-All Cellestial bodies implement adaptive tesselation to improve the resolution of the geodesic icosahedron mesh.
-
-This can be toggled(`imgui:Body Tesselation`, `toml:planets.enable_body_tesellation`), and can be made to adjust the height of triangles in pixels(`imgui:Target Body Tessellation Triangle Height`, `toml:target_triangle_height`).
-
-The reason for adding gpu side tessellation alongside cpu side tesselation (the geodesic icosahedron) is because it is dynamic. However, the increase of resolution that can be achieved in opengl with tesselation is limited, so we still need cpu side tessellation. Another reason for using both is that with CPU tesselation we have more control over how triangles are split, resulting in a better distribution.
-
-An alternative to this method would be to use a high triangle count mesh of a sphere but because of the way we implemented terrain (see below Earth section), tessellation is better suited to our needs.
-
-Below is a table comparing (on a geodesic with frequency 1) tesselation off, tesselation with target triangle hegiht 100, and tesselation with target triangle height 1.
-
-| Tessellation Off | Triangle Height 100 | Triangle Height 1 |
-|:----------------:|:-------------------:|:-----------------:|
-| `tessellation_off.toml` | `tessellation_on_100.toml` | `tessellation_on_1.toml` |
-| ![Tessellation Off](screenshots/tessellation_off.png) | ![Triangle Height 100](screenshots/tessellation_100.png) | ![Triangle Height 1](screenshots/tessellation_1.png) |
-
-*Figure 2: Comparison of tessellation settings on a geodesic icosahedron mesh with frequency 1.*
-
-The tesselation evaluation step is basic, it just outputs worldspace position, normalized position on the sphere (i.e. model space position), and the clip space position. However, the earth implements a more advanced tesselation evaluation, which will be explained in the Earth section.
-
-**Stars**
-
-Stars implement color using temperature. This is configurable as a global default(`toml:planets.star.default_star_temperature`) and on a per star basis(`imgui:Temperature (C)`). Cold stars are red and the hottest are light blue. This temperature factor also impacts their light intensity.
-
-![Star Color Comparison](screenshots/star_color_comparison.png)
-*Figure 3: Star color comparison based on temperature in Celsius, from left to right 3000, 4500, 5778 (Sun), 10000 and 30000.* 
-
-**Stars: Animated textures**
-Stars also implement animated textures(`toml:planets.star.enable_star_texture`, `imgui: Enable Star Texture / Animation`). These textures are implemented using 4d noise in the fragment shader. The base opensimplex noise is taken from https://github.com/stegu/webgl-noise. Using this I implemented a fractal noise algorithm,  
-which is used in conjunction with domain warping to get swirls. this value is then used to interpolate colors (based on temperature) to get a nice looking star.
-The 4 dimensions are needed because I am sampling the noise at the fragPosition(3D) at the point in time t, our 4th dimension. Parameters for the noise function can be configured(`toml:planets.star`).
-
-![Star Texture Animation](screenshots/star_textured.png)
-*Figure 4: Star with animated textures enabled. To see the effect run the project, or look at the demo.*
-
-**Hierarchical transformations**
-The solar system is composed of spherical bodies of several types:
-
-
-
-
-### Spaceship
-
-### Lighting and Shading
-**Eclipses**
-
-**Star lights (shadow mapping)**
-
-**???**
-
-### Skybox
-
-### MiniMap?
-
-### Cameras?
-
-
-[//]: # (Part Dumi)
-
-# 1. Battlecruiser
+# 4. Battlecruiser
 
 The battlecruiser represents the central 3D model of our project and serves as both a visual and technical showcase for advanced rendering, lighting, and animation techniques within OpenGL.
 Inspired by the Terran Battlecruiser from StarCraft II, the ship was designed and implemented through a complete asset pipeline, beginning with CAD-based modelling, PBR texturing, OpenGL integration, and ending with physically based shading, shadow mapping, particle effects, and motion systems.
@@ -107,7 +79,7 @@ This section details every stage of the battlecruiser's development, including:
 
 Together, these components form the technical foundation of the battlecruiser module, uniting CAD precision, shader programming, and real-time rendering techniques into a cohesive visual centerpiece for the project.
 
-## 1.1 Modelling
+## 4.1 Modelling
 
 The battlecruiser model developed for this project was inspired by the Terran Battlecruiser from the well-known and nostalgic game StarCraft II (see Figure 1 and Figure 2). While the original model is characterized by an abundance of intricate surface details, mechanical panels, and complex geometry, this project aimed for a simplified version that retains the essential silhouette and design features without excessive geometric complexity. This approach facilitates easier implementation of physically-based rendering (PBR) shaders later in the pipeline and allows the fine surface details to be expressed primarily through texture maps (e.g., normal, metallic, and roughness maps) rather than raw mesh geometry.
 
@@ -121,7 +93,7 @@ The battlecruiser model developed for this project was inspired by the Terran Ba
   <figcaption style="text-align:center;">Figure 2. Terran Battlecruiser from Starcraft 2 (schematic).</figcaption>
 </figure>
 
-## 1.1.1 Software Selection and Rationale
+## 4.1.1 Software Selection and Rationale
 
 For the modelling stage, Autodesk Fusion360 was chosen over Blender.
 While both tools are highly capable, they target different design philosophies:
@@ -146,7 +118,7 @@ But it also comes with some disadvantages for pure modelling and transitioning t
 
 In contrast, Blender excels in artistic modeling, sculpting, and texture workflows. However, because this stage emphasized mechanical structure and precision, Fusion360 was a more suitable choice. Blender was later used to handle UV unwrapping, material setup, and PBR texturing (see Section 1.2).
 
-## 1.1.2 Modelling Process
+## 4.1.2 Modelling Process
 
 The modelling workflow followed a modular assembly approach, dividing the battlecruiser into several key components:
 - Bridge: The command and control structure of the ship, including the antenna mount.
@@ -166,11 +138,11 @@ The resulting model (see Figure 3) preserves the recognizable silhouette of the 
   <figcaption style="text-align:center;">Figure 3. Battlecruiser Assembly Model.</figcaption>
 </figure>
 
-## 1.2 Texturing and Scaling
+## 4.2 Texturing and Scaling
 
 Once the battlecruiser model was finalized in Fusion360, it was exported as an `.OBJ` file and imported into Blender for texturing and UV preparation. Blender served as the primary environment for applying Physically Based Rendering (PBR) textures, adjusting scale, and preparing the mesh for integration into the OpenGL pipeline.
 
-### 1.2.1 Import and Scaling
+### 4.2.1 Import and Scaling
 
 Upon import, Blender provided the option to optimize mesh density by reducing the number of vertices. However, in this case, the geometry was already well-balanced between visual fidelity and performance, so no simplification was necessary.
 
@@ -179,7 +151,7 @@ This ensures visual consistency and prevents rendering or lighting artifacts due
 
 Additionally, the origin position of the model was reset and centered at the geometric midpoint of the mesh. This adjustment is essential for realistic motion behavior, as future transformations, such as rotation and translation (see Sections 1.8 and 1.9), will depend on the correct pivot point. A misaligned origin would otherwise result in unnatural rotation or scaling effects in OpenGL.
 
-### 1.2.2 PBR Texturing Workflow
+### 4.2.2 PBR Texturing Workflow
 
 After scaling and positioning, the next step was to introduce PBR (Physically Based Rendering) textures to the model. Initially, the imported geometry appeared plain and featureless; PBR texturing provides the necessary visual richness by simulating realistic material properties such as light reflection, surface roughness, and metallicity.
 
@@ -199,7 +171,7 @@ Blender's Shader Editor was used to assign these textures via the Principled BSD
   <figcaption style="text-align:center;">Figure 4. Blender Shader Node for a material with PBR textures.</figcaption>
 </figure>  
 
-### 1.2.3 Material Assignment
+### 4.2.3 Material Assignment
 
 To achieve a balanced visual composition, distinct materials were created and assigned to different structural parts of the battlecruiser. Each major component received its own PBR texture set or material definition to help convey functional and visual differentiation:
 
@@ -213,7 +185,7 @@ To achieve a balanced visual composition, distinct materials were created and as
 
 This modular texturing ensured visual variety while maintaining material consistency across related ship components. Furthermore, predefining the window material at this stage allows for a more seamless integration of environmental reflections later in the OpenGL rendering pipeline.
 
-### 1.2.4 UV Unwrapping and Texture Mapping
+### 4.2.4 UV Unwrapping and Texture Mapping
 
 Before exporting the model for OpenGL, UV unwrapping was performed.
 UV unwrapping is the process of projecting the 3D surface of the model onto a 2D plane, creating a UV map that defines how texture pixels correspond to surface coordinates.
@@ -225,7 +197,7 @@ Texture scaling and tiling were also adjusted to prevent distortion and to ensur
 This step is crucial because, in the OpenGL pipeline, vertex attributes (position, normal, and texture coordinates) define how the fragment shader samples each texture map.
 A properly unwrapped UV layout ensures accurate PBR shading and lighting results.
 
-### 1.2.5 Export and Preview
+### 4.2.5 Export and Preview
 
 Once texturing and UV wrapping were finalized:
 1. The model was triangulated (since OpenGL requires triangular primitives for rendering).
@@ -239,13 +211,13 @@ A rendered preview in Blender (Figure 5) provided a visual reference for how the
   <figcaption style="text-align:center;">Figure 5. Battlecruiser Render Preview (Blender).</figcaption>
 </figure>
 
-## 1.3 OpenGl loading
+## 4.3 OpenGl loading
 
 The `Battlecruiser` class encapsulates the complete rendering and animation logic for the 3D battlecruiser model, including mesh data management, texture binding, and shader communication, with the most crucial component being the Physically Based Rendering (PBR) shader (`mainShader`) used for all opaque surfaces.
 
 This class is responsible for preparing OpenGL resources, including vertex buffers, textures, and vertex array objects (VAOs), binding the appropriate materials to the rendering pipeline, and ensuring that each mesh is drawn using the correct shading technique.
 
-### 1.3.1 Model Integration and Resource Setup
+### 4.3.1 Model Integration and Resource Setup
 
 The model geometry is imported from a triangulated `.OBJ` file using a custom utility function, `loadMesh()`.
 Each mesh in the file corresponds to one of the material regions previously defined in Blender (see Section 1.2). These meshes are stored in GPU-ready structures (`MeshGL`), each containing:
@@ -266,7 +238,7 @@ if (m.materialName == "Panel-0") {
 }
 ```
 
-### 1.3.2 Shader Initialization
+### 4.3.2 Shader Initialization
 
 Three primary shaders are loaded and managed by the `Battlecruiser` class:
 - `mainShader`: Implements the full PBR model for opaque materials, including metallic and roughness-based reflections.
@@ -276,7 +248,7 @@ Three primary shaders are loaded and managed by the `Battlecruiser` class:
 The mainShader is loaded from two GLSL source files: `shader_vert.glsl` (vertex stage) and `shader_frag.glsl` (fragment stage).
 Together, they implement the Cook–Torrance microfacet PBR model, sampling from the loaded textures and applying physically accurate lighting using directional and point light sources from the scene's planetary system.
 
-### 1.3.3 Rendering Pipeline and Draw Passes
+### 4.3.3 Rendering Pipeline and Draw Passes
 
 The `draw()` function governs the entire rendering process, executed each frame to draw the battlecruiser.
 The method performs three main passes:
@@ -311,7 +283,7 @@ The method performs three main passes:
    Finally, the thrusterShader renders the ship's engines, applying emissive lighting and randomized flickering.
    This is achieved using a uniform random distribution (`std::uniform_real_distribution`) to modulate glow intensity and hue, enhancing realism.
 
-### 1.3.4 Class Overview
+### 4.3.4 Class Overview
 Below is a summary of the main public methods of the Battlecruiser class and their respective roles:
 
 | **Method**         | **Role**                                                                 |
@@ -324,13 +296,13 @@ Below is a summary of the main public methods of the Battlecruiser class and the
 
 Through this modular pipeline, the battlecruiser integrates seamlessly into the OpenGL scene, with every component drawn through an optimized, material-aware rendering path.
 
-## 1.4 PBR Shading
+## 4.4 PBR Shading
 
 The Physically Based Rendering (PBR) shader is the centerpiece of the rendering pipeline, defining how light interacts with the battlecruiser's surfaces.
 It takes as input the material texture maps (albedo, normal, metallic, roughness), camera position, and lighting data from the scene.
 The shader's goal is to approximate real-world light behavior using physically consistent equations.
 
-### 1.4.1 Vertex Shader Logic
+### 4.4.1 Vertex Shader Logic
 
 In the vertex stage (`shader_vert.glsl`), the Model–View–Projection (MVP) transformation is applied to compute the final vertex position (`gl_Position`), and the world-space position is passed to the fragment shader for lighting computations.
 
@@ -346,7 +318,7 @@ mat3 tbn = mat3(T, B, N);
 
 Without this transformation, rotating the object would not correctly rotate its normal map details.
 
-### 1.4.2 Fragment Shader Logic
+### 4.4.2 Fragment Shader Logic
 
 In the fragment shader (`shader_frag.glsl`), the PBR lighting model is implemented using the Cook–Torrance microfacet BRDF.
 
@@ -396,7 +368,7 @@ $k_d = (1 - F) \cdot (1 - \text{metallic})$
 
 Finally, the computed color undergoes shadow and eclipse modulation (discussed in Section 1.5), and is gamma-corrected before being written to the frame buffer.
 
-### 1.4.3 Summary
+### 4.4.3 Summary
 The PBR shader combines physically grounded reflectance equations with the precomputed texture data to deliver realistic visual effects: metallic highlights, micro-surface detail from normal maps, and natural diffuse lighting. We can observe the difference between using only the color texture (Figure 6) and applying the implemented PBR shader (Figure 7).
 By integrating this model in OpenGL, the battlecruiser achieves a consistent, high-fidelity appearance under varying light conditions, forming the foundation for the advanced rendering stages such as shadow mapping and environment reflection covered in the following sections.
 
@@ -411,14 +383,14 @@ By integrating this model in OpenGL, the battlecruiser achieves a consistent, hi
   <figcaption style="text-align:center;">Figure 7. Battlecruiser with PBR shading</figcaption>
 </figure>  
 
-## 1.5 Shadow Mapping and Eclipse Ray-Tracing
+## 4.5 Shadow Mapping and Eclipse Ray-Tracing (explained in section 6)
 
-## 1.6 Environment Mapping Skybox
+## 4.6 Environment Mapping Skybox
 
 A special material, identified in the mesh as `Panel-10`, is reserved for the environment-mapped reflective surface of the battlecruiser, specifically, the bridge windows.
 Unlike the opaque PBR materials, this material is rendered in a separate shader pass using the `reflectiveShader`, which implements environment mapping to simulate reflections from the surrounding skybox.
 
-### 1.6.1 Overview of the Reflective Shader Pass
+### 4.6.1 Overview of the Reflective Shader Pass
 
 During the rendering sequence (executed in the `draw()` method of the `Battlecruiser` class), the reflective pass is performed immediately after all opaque meshes are drawn.
 
@@ -427,7 +399,7 @@ This pass activates the reflective shader, sets all necessary uniforms, includin
 The reflective shader then draws only the meshes tagged with the material `"Panel-10"`, ensuring that only the designated reflective surfaces (the bridge windows) are affected.
 After rendering, blending and depth testing states are reset to prepare for subsequent passes such as emissive lighting.
 
-### 1.6.2 Cubemap Texture and Environment Mapping
+### 4.6.2 Cubemap Texture and Environment Mapping
 
 The environment reflection relies on a cubemap texture, referenced in the shader as `cubemapTexture`.
 A cubemap is a special type of OpenGL texture that contains six square images, each representing one face of a cube. These six textures correspond to the +X, -X, +Y, -Y, +Z, and -Z directions in world space.
@@ -438,7 +410,7 @@ This allows for realistic reflection lookups in shaders: given a reflection dire
 
 The construction of this cubemap (including image loading, orientation, and skybox rendering) will be described in detail in Section 3, which focuses on the skybox and environment setup.
 
-### 1.6.3 Fragment Shader Operation
+### 4.6.3 Fragment Shader Operation
 
 The fragment shader used for this pass, located at `shaders/battlecruiser/glass_shader_frag.glsl`, computes reflections and transparency effects to simulate glass-like material behavior.
 
@@ -473,13 +445,13 @@ This process gives the bridge windows a glossy, semi-transparent appearance that
   <figcaption style="text-align:center;">Figure 8. Battlecruiser with environment mapping</figcaption>
 </figure>  
     
-## 1.7 Particles
+## 4.7 Particles
 
 At this stage, the battlecruiser model is visually complete, featuring detailed PBR materials and reflective surfaces. However, to further enhance realism (particularly for the thruster exhaust), a particle system is introduced. This system simulates small, semi-transparent particles that collectively form flame and smoke effects at the rear of the spacecraft.
 
 A particle system provides an optimized and visually convincing way to represent phenomena such as fire, smoke, or sparks by rendering many tiny 2D quads (billboards) that always face the camera. Each quad carries a partially transparent texture (or simply a colored alpha-blended region). When hundreds or thousands of these quads are drawn together, they create the illusion of a continuous, dynamic effect.
 
-### 1.7.1 System Overview
+### 4.7.1 System Overview
 
 The particle system is implemented in the `ParticleSystem` class, which manages simulation, updates, and rendering of thousands of lightweight particles in real time.
 
@@ -506,7 +478,7 @@ Particles are stored in a dynamic vector (`particles`) and managed through three
 2. Updating
 3. Drawing
 
-### 1.7.2 Spawning and Initialization
+### 4.7.2 Spawning and Initialization
 
 The `spawn_per_location()` method governs particle creation. Rather than continuously allocating and freeing memory, the system reuses inactive particles by locating available ones using `findUnusedParticle()`. his ensures optimal performance even when thousands of particles are active.
 
@@ -518,7 +490,7 @@ Each new particle receives randomized initial properties to achieve natural vari
 
 This randomness ensures that each particle is visually unique and prevents repetitive or artificial patterns.
 
-### 1.7.3 Update Stage
+### 4.7.3 Update Stage
 
 Each frame, the system calls the `update_stage()` method, which updates all active particles based on the elapsed time (`dt`):
 - Life Decrement: The `life` of each particle is reduced by `dt`. Once it falls below zero, the particle becomes inactive and is available for reuse.
@@ -529,7 +501,7 @@ Each frame, the system calls the `update_stage()` method, which updates all acti
 
 This stage gives the illusion of particles being emitted, moving outward, and dissipating naturally.
 
-### 1.7.4 Rendering Stage and Billboarding
+### 4.7.4 Rendering Stage and Billboarding
 
 Rendering is handled by the `draw_stage()` method. Particles are rendered as billboards (flat quads that always face the camera), using a single instanced draw call (`glDrawArraysInstanced`).
 
@@ -556,7 +528,7 @@ To correctly blend semi-transparent particles:
 
 This combination allows overlapping flame and smoke particles to blend smoothly, forming a cohesive and dynamic exhaust effect.
 
-### 1.7.5 Particle Vertex Shader
+### 4.7.5 Particle Vertex Shader
 
 The vertex shader (`shaders/battlecruiser/particle_vertex.glsl`) performs the billboarding transformation.
 
@@ -583,7 +555,7 @@ The fragment shader simply outputs the interpolated color with alpha transparenc
   <figcaption style="text-align:center;">Figure 9. Battlecruiser with particles</figcaption>
 </figure>  
 
-### 1.7.6 Summary
+### 4.7.6 Summary
 
 The particle system provides a lightweight yet visually compelling effect to simulate thruster flames and other dynamic visual phenomena.
 
@@ -591,7 +563,7 @@ By using GPU instancing, billboarding, and alpha blending, thousands of particle
 
 This system complements the battlecruiser's PBR-rendered body, adding motion and life to the spacecraft as it maneuvers, a key step before implementing free movement and path control in Section 1.9.
 
-## 1.8 Light Particles
+## 4.8 Light Particles
 
 While the particle system described in Section 1.7 successfully creates the illusion of a dynamic exhaust flame, the particles themselves do not emit light into the scene (Figure 10). As a result, when the battlecruiser is positioned in shadow, particularly behind planetary bodies, the thruster flames appear visually disconnected from their surroundings, as shown in Figure 7.
 
@@ -602,7 +574,7 @@ While the particle system described in Section 1.7 successfully creates the illu
 
 To address this limitation, a light particle simulation is introduced to mimic thruster illumination on nearby geometry.
 
-### 1.8.1 Motivation and Design Constraints
+### 4.8.1 Motivation and Design Constraints
 
 Naively converting each particle into a point light source would require computing lighting equations for thousands of lights, leading to an exponential performance drop and making this approach impractical in real time.
 
@@ -612,7 +584,7 @@ The idea is to arrange these lights in concentric circular layers, centered on t
 
 When configured correctly, the outermost ring coincides with the widest dispersion of exhaust particles, producing a visually convincing lighting effect without the computational overhead of per-particle illumination.
 
-### 1.8.2 Implementation in the Rendering Pipeline
+### 4.8.2 Implementation in the Rendering Pipeline
 
 This lighting effect occurs in the third rendering pass of the `Battlecruiser::draw()` function.
 After the PBR and reflective passes are completed, the `thrusterShader` is activated to render the simulated thruster illumination.
@@ -628,7 +600,7 @@ This randomization affects the following parameters:
 
 The shader then procedurally computes the contribution of multiple circular light layers without creating explicit point light objects, maintaining performance efficiency.
 
-### 1.8.3 Shader Architecture and Light Distribution
+### 4.8.3 Shader Architecture and Light Distribution
 
 The fragment shader, implemented in `shaders/battlecruiser/thruster_frag.glsl`, simulates illumination using a parametric ring-based distribution of lights.
 
@@ -662,7 +634,7 @@ A bright central hotspot is then added at the core (`thrusterWorldPos`) to empha
 
 This approach reproduces the complex lighting of thousands of small flames using only a handful of mathematical operations per fragment, achieving an ideal balance between visual fidelity and performance efficiency.
 
-### 1.8.4 Integration with the PBR Pipeline
+### 4.8.4 Integration with the PBR Pipeline
 
 The thruster lighting shader operates synergistically with the PBR shading described in Section 1.4.
 Although these lights are not physically simulated light sources, their radiance integrates naturally into the PBR reflection and diffuse equations of nearby geometry.
@@ -675,13 +647,13 @@ Despite this simplification, the technique effectively ensures that the rear hul
   <figcaption style="text-align:center;">Figure 11. Battlecruiser with light particles</figcaption>
 </figure>  
 
-## 1.9 Movement
+## 4.9 Movement
 
 The final stage of the battlecruiser implementation involves enabling dynamic movement, allowing both user-controlled flight and automatic motion along a predefined Bezier path.
 
 This dual movement system provides a balance between interactivity and cinematic animation, showcasing the model's shading, lighting, and particle effects in motion.
 
-### 1.9.1 Manual (Free) Movement
+### 4.9.1 Manual (Free) Movement
 
 To make the battlecruiser fully controllable, the user can fly the ship freely using keyboard inputs. The control scheme follows a simple and intuitive airplane-like setup:
 - Up Arrow: Moves the ship forward along the world Y-axis.
@@ -692,7 +664,7 @@ Although this setup restricts movement primarily to the Y-axis for simplicity, i
 
 The motion logic is implemented in the function `updateVelocityPositionFreeMovement(deltaTime)`, which ensures smooth motion, orientation, and velocity updates independent of frame rate.
 
-### 1.9.2 Flight Dynamics and Control Parameters
+### 4.9.2 Flight Dynamics and Control Parameters
 
 The function begins by computing the current speed magnitude:
 
@@ -735,7 +707,7 @@ The result is a smooth, realistic motion system where the ship banks into turns,
   <figcaption style="text-align:center;">Figure 12. Battlecruiser turning with roll effect</figcaption>
 </figure>  
 
-### 1.9.3 Integration with Particle Effects
+### 4.9.3 Integration with Particle Effects
 
 The ship's current velocity vector directly influences the particle system described in Section 1.7. Specifically:
 - The particle size and spread parameters scale proportionally with velocity (Figure 13).
@@ -748,7 +720,7 @@ The ship's current velocity vector directly influences the particle system descr
 </figure>
 
 
-### 1.9.4 Automated Bezier Path Movement
+### 4.9.4 Automated Bezier Path Movement
 
 In addition to manual controls, the battlecruiser can also follow an automated flight path defined by a cubic Bezier curve system.
 This feature enables cinematic camera sequences, pre-scripted routes, or demo flights where the ship navigates smoothly through space without user input.
@@ -805,7 +777,7 @@ This method effectively reparametrizes the Bézier curve by arc length, yielding
   <figcaption style="text-align:center;">Figure 15. Reparametrized Bezier path (constant speed)</figcaption>
 </figure>  
 
-### 1.9.5 Path Following and Rendering
+### 4.9.5 Path Following and Rendering
 During automatic motion, the function `updateVelocityPositionPathMovement()` advances the battlecruiser along the Bezier curve based on the distance traveled:
 - The parameter `timeBezierPath` accumulates the traveled arc length.
 - The corresponding `t` value is retrieved using the arc-length lookup table.
@@ -822,7 +794,7 @@ The result is a glowing, dotted line that visually represents the battlecruiser'
   <figcaption style="text-align:center;">Figure 16. Battlecruiser following a Bezier path</figcaption>
 </figure>  
 
-### 1.9.6 Summary
+### 4.9.6 Summary
 
 The movement system integrates both interactive control and autonomous motion, creating a flexible and immersive flight experience.
 Free movement allows player-directed exploration, complete with responsive banking and velocity-linked thruster feedback.
@@ -830,7 +802,176 @@ Meanwhile, the Bezier path mechanism enables smooth, cinematic trajectories usin
 
 Together, these two approaches ensure the battlecruiser behaves realistically, whether steered by the user or following a precomputed flight path, and that its visual effects (particles, lighting, reflections) remain consistent and synchronized with motion.
 
-# 2. Cameras
+# 5. Solar System
+## 5.1 Celestial Bodies
+
+The celestial bodies in our system use a runtime generated mesh of a class I geodesic icosahedron [https://en.wikipedia.org/wiki/Geodesic_polyhedron#Class_I].
+
+This mesh is generated with a frequency (`toml:planets.ico_mesh_resolution`) and then used to render all celestial bodies in our project. The difference made by using a geodesic icosahedron instead of a regular icosahedron is in Figure 1 below.
+
+| Regular Icosahedron          | Geodesic Icosahedron         |
+|:-------------------:|:-------------------:|
+| `geodesic_resolution_1.toml` | `geodesic_resolution_3.toml` |
+| ![Regular Icosahedron](screenshots/regular_icosahedron.png) | ![Geodesic Icosahedron](screenshots/geodesic_icosahedron.png) |
+
+*Figure 1: Comparison between a regular icosahedron and a class I geodesic icosahedron mesh with frequency 3 used for celestial bodies.*
+
+We implement 4 types of celestial bodies (some of which we will go into more depth below):
+- Default body (This is the parent class of all other body types and implements default behaviour. It is used as a placeholder for moons.)
+- Star
+- Earth
+- Null body (not rendered, but used for orbital anchoring)
+
+Default bodies also have basic attributes like position, color(`imgui:Fallback Color`, `toml:planets.fallback_color`), ka(`toml:planets.fallback_ka`), kd(`toml:planets.fallback_kd`), and radius. The radius can also be configured using imgui, or toml (we explain this below). n.b. The color, ka, and kd are not used if the body is a child class of default body.
+
+## 5.2 Tessellation
+
+All Cellestial bodies implement adaptive tessellation to improve the resolution of the geodesic icosahedron mesh.
+
+This can be toggled(`imgui:Body Tessellation`, `toml:planets.enable_body_tesellation`), and can be made to adjust the height of triangles in pixels(`imgui:Target Body Tessellation Triangle Height`, `toml:target_triangle_height`).
+
+The reason for adding gpu side tessellation alongside cpu side tesselation (the geodesic icosahedron) is because it is dynamic. However, the increase of resolution that can be achieved in opengl with tesselation is limited, so we still need cpu side tessellation. Another reason for using both is that with CPU tesselation we have more control over how triangles are split, resulting in a better distribution.
+
+An alternative to this method would be to use a high triangle count mesh of a sphere but because of the way we implemented terrain (see below Earth section), tessellation is better suited to our needs.
+
+Below is a table comparing (on a geodesic with frequency 1) tesselation off, tesselation with target triangle hegiht 100, and tesselation with target triangle height 1.
+
+| Tessellation Off | Triangle Height 100 | Triangle Height 1 |
+|:----------------:|:-------------------:|:-----------------:|
+| `tessellation_off.toml` | `tessellation_on_100.toml` | `tessellation_on_1.toml` |
+| ![Tessellation Off](screenshots/tessellation_off.png) | ![Triangle Height 100](screenshots/tessellation_100.png) | ![Triangle Height 1](screenshots/tessellation_1.png) |
+
+*Figure 2: Comparison of tessellation settings on a geodesic icosahedron mesh with frequency 1.*
+
+The tesselation evaluation step is basic, it just outputs worldspace position, normalized position on the sphere (i.e. model space position), and the clip space position. However, the earth implements a more advanced tesselation evaluation, which will be explained in the Earth section.
+
+## 5.3 Stars
+
+Stars implement color using temperature. This is configurable as a global default(`toml:planets.star.default_star_temperature`) and on a per star basis(`imgui:Temperature (C)`). Cold stars are red and the hottest are light blue. This temperature factor also impacts their light intensity.
+
+![Star Color Comparison](screenshots/star_color_comparison.png)
+
+*Figure 3: Star color comparison based on temperature in Celsius, from left to right 3000, 4500, 5778 (Sun), 10000 and 30000.* 
+
+## 5.4 Stars: Animated textures
+
+Stars also implement animated textures(`toml:planets.star.enable_star_texture`, `imgui: Enable Star Texture / Animation`). These textures are implemented using 4d noise in the fragment shader. The base opensimplex noise is taken from https://github.com/stegu/webgl-noise. Using this we implemented a fractal noise algorithm, which is used in conjunction with domain warping to get swirls. this value is then used to interpolate colors (based on temperature) to get a nice looking star.
+
+The 4 dimensions are needed because we are sampling the noise at the fragPosition(3D) at the point in time t, our 4th dimension. Parameters for the noise function can be configured(`toml:planets.star`).
+
+![Star Texture Animation](screenshots/star_textured.png)
+
+*Figure 4: Star with animated textures enabled. To see the effect run the project, or look at the demo.*
+
+## 5.5 Earth Terrain
+
+The earth body type implements a procedural terrain shader (`imgui:Enable Planet Terrain Generation`). This shader uses 3D opensimplex noise (same as the star, but 3D) to displace the vertices of the earth in the tesselation evaluation shader. The noise parameters can be configured(`toml:planets.earth`). This noise value is also enhanced by implementing a fractal noise algorithm. It is then multiplied by two and raised to the power of 1.5 (while preserving sign) to get more pronounced terrain features. This value is then compared to the ocean level(`imgui: Ocean Level`, `toml:planets.earth.ocean_level`) to determine if the vertex is underwater or above water. If it is underwater, the vertices are displaced on the sphere of radius equivalent to the ocean level, otherwise they are displaced on the sphere of radius equal to the ocean level plus the noise displacement.
+
+| Terrain Off | Terrain On(no tessellation) | Terrain On(tessellation) |
+|:----------------:|:-------------------:|:-----------------:|
+| ![Terrain Off](screenshots/earth_no_generation.png) | ![Terrain On no tessellation](screenshots/earth_no_tessellation_generated.png)  | ![Terrain On with tessellation](screenshots/earth_tessellation_generated.png) |
+
+*Figure 5: Comparison of earth terrain generation settings. This displays the benefit of using tesselation as well.*
+
+The color of the surface is alos determined by the height. Transitoning from beach to grass, forest and snow.
+
+## 5.6 Earth Surface Normals
+
+The earth fragment shader also implements a noise based surface normal map(`imgui:Enable Planet Surface Normals`). This is done by sampling the same fractal 3D noise function as the above, and using the derivatives of this noise to perturb the normal. The parameters for this noise can also be configured(`toml:planets.earth.shape_noise_*`).
+
+This normal is also used to use gray color for cliffs, i.e. where the slope is steep.
+| Surface Normals Off | Surface Normals On |
+|:----------------:|:-------------------:|
+| ![Surface Normals Off](screenshots/earth_no_surface_normals.png) | ![Surface Normals On](screenshots/earth_surface_normals.png)  |
+
+*Figure 6: Comparison of earth surface normal settings. Note the added detail on the terrain when normals are enabled.*
+
+
+## 5.7 Earth Water
+
+The earth fragment shader also implements a noise based water normal map(`imgui:Enable Planet Water Normals`, `toml:`). This is done by sampling another fractal 4D noise function, and using the derivatives of this noise to perturb the normal. The parameters for this noise can also be configured(`toml:planets.earth.water_noise_*`).
+
+| Water Normals Off | Water Normals On |
+|:----------------:|:-------------------:|
+| ![Water Normals Off](screenshots/earth_no_water_normals.png) | ![Water Normals On](screenshots/earth_with_water_normals.png)  |
+
+*Figure 7: Comparison of earth water normal settings. Note the added detail on the water surface when normals are enabled. Note: the mountains peeking through are to be ignored, because, in order to take these screenshots, I increased the ocean level.*
+
+The water also has color based on the depth of the ocean at that point. The deeper the water, the darker the blue, and the shore is white to represent foam.
+
+**Note:** these noise functions are all computed in the shaders, no precomputed textures are used. This allows for infinite resolution and seamless texturing, however it is more computationally expensive.
+
+## 5.8 Hierarchical transformations
+
+Celestial bodies are stored in a list, but each body also has a pointer to its parent body (if it has one). This allows us to implement hierarchical transformations, where a body's position is relative to its parent. For example, a moon's position is relative to the planet it orbits. 
+
+For simplicity, we do not update the bodies using a topological sort, instead we just update them in the order they are stored in the list. This means that there is a lag in the position update of child bodies, but this is negligible for our purposes.
+
+There is an imgui slidder to select a body to view and edit its parameters(`imgui: Selected Body`).
+
+The orbits are eliptical, with the parent being at one of the foci. The orbital parameters (major radius (`imgui: large radius`), minor radius (`imgui: small radius`), direction (`imgui: orbit direction`) and normal (of the orbital plane) (`imgui: orbit normal`)) are configurable for the selected planet.
+
+The whole solar system can be set up in the toml config file(`toml:planets.planets_info`), where each body has a type, parent, and optional orbit parameters like in the example below:
+```toml
+[planets]
+planets_info = [
+    # example entries:
+    # [type, radius, parent_id = -1, ...] -> no orbit, static planet at (0, 0, 0) OR
+    # [type, radius, parent_id, orbit_direction, orbit_small_r, orbit_large_r, orbit_normal, orbit_period]
+    # type can be "star", "earth", "null" or "body"
+
+    # Default single planet system
+    ["star", 4.0, -1, [0.0, 0.0, 0.0], 0.0, 0.0, [0.0, 1.0, 0.0], 0.0],
+    ["earth", 1.0, 0, [1.0, 0.0, 0.0], 40.0, 40.0, [0.0, 1.0, 0.0], 100000.0],
+    ["body", 0.5, 1, [0.0, 0.0, 1.0], 10.0, 10.0, [0.0, 1.0, 0.0], 2.0],
+]
+```
+
+We also have the option of creating binary star systems using null bodies as orbital anchors. The binary flag(`toml:planets.binary_system`) is used for shadow and lighting calulations (explained below). Otherwise, only the first star in the bodies list is considered for lighting calculations, but many stars can be rendered. The null body type is used for orbital anchoring, it is not rendered, but can be used as a parent for other bodies. This is useful for creating binary star systems where the stars orbit a null body.
+
+Additionally, we have buttons to add earths and default bodies to the solar system at runtime(`imgui: Add Earth`, `imgui: Add Default Body`). These bodies are added as children of the currently selected body, and they get selected automatically, so their orbital parameters can be edited right away.
+
+Another configurable attribute is a time multiplier(`imgui: time warp`) which speeds up or slows down the planets simulation time. This is useful for observing the orbits of bodies in the solar system.
+
+# 6. Lighting and Shading
+
+## 6.1 Eclipses
+
+    We implement eclipses for both single and binary star systems(`imgui:enable eclipses`). Celestial bodies can cast shadows on each other and the ship. This is done by comparing the apparent sizes and angular separations of celestial bodies as seen from a given point. Each body and the light source (the sun) are projected as discs on the sky, with angular radii determined by their physical size and distance. By evaluating how much these discs overlap, the algorithm estimates the fraction of the sun’s disc that is obscured, yielding a continuous eclipse factor between zero and one. It assumes simple geometric occlusion without detailed umbra or penumbra modeling, combining multiple overlaps multiplicatively to approximate partial and total eclipses. This is done in the fragment shader for both celestial bodies and the ship.
+
+    | No Eclipse | Eclipse | Eclipse + Earth |
+    |:----------------:|:-------------------:|:-----------------:|
+    | ![No Eclipse](screenshots/no_eclipse.png) | ![Eclipse](screenshots/eclipse.png)  | ![Eclipse Earth](screenshots/eclipse_generated.png) |
+
+    *Figure 8: Comparison of eclipse settings.*
+
+    *Note:* Stars can eclipse each other in binary star systems, so do not be surprised if a star does not light an object when another star passes in front of it!
+
+    ## 6.2 Star lights (shadow mapping)
+
+    For lighting, each star acts as a point light source. Shadows are handled using shadow mapping(`imgui: Enable Shadowmapping`) and are generated only for earths and the ship. We generate one shadow map per star and earth/ship combination. These shadow maps are only meant to capture shadows cast by an object onto itself, so the shadow map frustum is tightly fitted around the object. This is done by computing a bounding orthographic projection around the object in the light's view space, and using this to set the near and far planes of the shadow map frustum.
+
+    | Shadowmapping Off Earth | Shadowmapping On Earth | Shadowmapping Off Ship | Shadowmapping On Ship |
+    |:----------------:|:-------------------:|:-----------------:|:-----------------:|
+    | ![Shadowmapping Off Earth](screenshots/earth_no_shadow.png) | ![Shadowmapping On Earth](screenshots/earth_shadow.png)  | ![Shadowmapping Off Ship](screenshots/ship_no_shadow.png) | ![Shadowmapping On Ship](screenshots/ship_shadow.png) |
+
+    Figure 9: Comparison of shadowmapping settings on earth and ship.
+
+    The sampling of the shadow map is done using Percentage Closer Filtering (PCF) to smooth out the shadows(`imgui: PCF Kernel Radius`, `imgui:Enable PCF`).
+
+## 6.3 Cellestial Body Shading
+
+The earths' surface and default bodies use lambertian diffuse shading. The earths' water uses blinn-phong shading for the specular component.
+
+## 6.4 Light Combination Battlecruiser
+When multiple stars are present in the scene, their light contributions are combined additively. Each star's illumination is calculated independently, taking into account its unique color, intensity, shadow, and any eclipses affecting it. This is multiplied by an exposure factor. The final color at each fragment is the sum of the contributions from one or two stars, allowing for realistic lighting effects in binary-star systems.
+
+## 6.5 Light Combination / tone mapping Celestial Bodies
+For celestial bodies, we do a similar approach to the ship, but we also apply tone mapping and gamma correction. These values are hardcoded for celestial bodies, in order to avoid overexposure.
+
+## 6.6 PBR Shaders (Explained in section 4.4)
+
+# 7. Cameras
 
 All of the rendering features described in the previous chapters, from PBR shading to particle, movement and planet systems, are meaningful only when they can be observed interactively. For this reason, special emphasis has been placed on the camera systems of this project.
 
@@ -841,7 +982,7 @@ Three camera types have been implemented to provide multiple perspectives for vi
 
 These camera modes collectively allow the user to observe the project's visual systems (lighting, materials, and animation) from various angles, enhancing both usability and presentation.
 
-## 2.1 Free Camera
+## 7.1 Free Camera
 
 The **Free Camera** represents the most straightforward camera mode and can be toggled by pressing the `1 ` key. As the name suggests, this camera is not bound to any object. It allows the user to freely navigate the scene (moving in all directions and rotating the view using both keyboard and mouse input).
 This functionality is especially useful for inspecting models, environments, and shaders from arbitrary positions, much like a first-person exploration mode (Figure 17).
@@ -851,7 +992,7 @@ This functionality is especially useful for inspecting models, environments, and
   <figcaption style="text-align:center;">Figure 17. Display of the entire project using free camera</figcaption>
 </figure>  
 
-### 2.1.1 Implementation Overview
+### 7.1.1 Implementation Overview
 
 The implementation resides in the `FreeCamera` class, which inherits from the abstract `Camera` interface.
 This class provides a fully interactive camera system with six degrees of freedom, combining keyboard-based translation and mouse-based rotation.
@@ -869,7 +1010,7 @@ glm::mat4 view = glm::lookAt(position, position + forward, up);
 
 This matrix transforms world-space coordinates into the camera's local view space and is later passed as a uniform to the rendering shaders.
 
-### 2.1.2 Input and Navigation Logic
+### 7.1.2 Input and Navigation Logic
 
 User input is handled within the method `update_input()`, which processes both keyboard and mouse actions.
 
@@ -896,7 +1037,7 @@ glm::quat q = glm::angleAxis(angle, axis);
 ```
 and update the forward and up vectors accordingly.
 
-### 2.1.3 Configuration and Initialization
+### 7.1.3 Configuration and Initialization
 
 The constructor initializes camera parameters such as movement speed, look sensitivity, and default orientation based on configuration data provided by the `Config` object.
 It also synchronizes input handling with the active window system (`Window` class), ensuring that real-time keyboard and mouse events are processed consistently.
@@ -911,7 +1052,7 @@ FreeCamera::FreeCamera(const Config& config, Window* window)
 ```
 This allows flexible tuning of camera responsiveness and ensures consistent behavior across various screen resolutions and frame rates.
 
-## 2.2 Camera Following Battlecruiser
+## 7.2 Camera Following Battlecruiser
 
 Compared to the Free Camera, which offers unrestricted exploration of the scene, the **Battlecruiser Camera** is a constrained third-person tracking camera designed to follow the position and orientation of the battlecruiser model. It can be toggled by pressing the `2` key.
 This configuration allows the viewer to observe the ship's behavior (movement, lighting, and particle effects) from a stable cinematic perspective (Figure 18).
@@ -923,7 +1064,7 @@ The camera maintains a fixed radius (`offset`) behind the battlecruiser and auto
   <figcaption style="text-align:center;">Figure 18. Camera following Battlecruiser</figcaption>
 </figure>  
 
-### 2.2.1 Implementation Overview
+### 7.2.1 Implementation Overview
 
 The `BattlecruiserCamera` class inherits from the abstract `Camera` interface and references three main components:
 - a `Window` instance: to handle user input.
@@ -932,7 +1073,7 @@ The `BattlecruiserCamera` class inherits from the abstract `Camera` interface an
 
 The class continuously updates its `position`, `forward`, and `up` vectors based on the battlecruiser's world-space transform, producing a smooth and physically consistent third-person perspective.
 
-### 2.2.2 Camera Orientation and Axes
+### 7.2.2 Camera Orientation and Axes
 
 The camera's `forward` vector is derived directly from the battlecruiser's facing direction, ensuring that the camera always looks in the same general direction as the ship.
 The `up` vector is calculated using a pair of cross products that preserve alignment with the world's Y-axis:
@@ -942,7 +1083,7 @@ up = glm::normalize(glm::cross(forward, horizontal_axis));
 ```
 This construction guarantees that the camera maintains a stable vertical orientation relative to the world coordinate system, even during sharp turns or complex maneuvers.
 
-### 2.2.3 Positioning and Tracking Logic
+### 7.2.3 Positioning and Tracking Logic
 
 The camera's position is dynamically updated each frame based on the battlecruiser's world-space position (`target`) and a predefined offset distance (`offset`):
 ```c++
@@ -958,7 +1099,7 @@ Here:
 
 By maintaining this spatial relationship, the camera provides a continuous trailing view that reacts naturally to the ship's direction and movement.
 
-### 2.2.4 User Interaction and Rotation Controls
+### 7.2.4 User Interaction and Rotation Controls
 
 While the camera automatically follows the battlecruiser, it also allows user-controlled orbiting for enhanced interactivity.
 The `update_input()` method handles mouse input to rotate the camera smoothly around the ship:
@@ -975,7 +1116,7 @@ To prevent over-rotation or flipping, the pitch is clamped within a defined rang
 
 This design allows the user to freely adjust the camera's viewing angle while the camera continues to track the ship's position and direction.
 
-### 2.2.5 View Matrix Computation
+### 7.2.5 View Matrix Computation
 Once the position and orientation vectors are updated, the view matrix is calculated using the standard GLM function:
 ```c++
 glm::mat4 view = glm::lookAt(position, target, up);
@@ -983,7 +1124,7 @@ glm::mat4 view = glm::lookAt(position, target, up);
 This transformation aligns the camera's forward axis with the battlecruiser's orientation and ensures a stable third-person perspective.
 The resulting view matrix is passed to the rendering pipeline, where it directly influences how the battlecruiser and surrounding environment are projected on-screen.
 
-## 2.3 Minimap
+## 7.3 Minimap
 
 To complement the free and battlecruiser-following cameras, a **minimap system** has been implemented to provide a constant top-down overview of the  (Figure 19).
 This feature is particularly useful for visualizing the orbital dynamics of planets, moons, and the battlecruiser's position within the larger scene.
@@ -1000,7 +1141,7 @@ If the **Bezier-path flight mode** (see Section 1.9.4) is enabled, the minimap a
 
 As a 2D system, the minimap entirely ignores the world Y-axis, relying only on the X and Z coordinates to compute positions.
 
-### 2.3.1 Implementation Overview
+### 7.3.1 Implementation Overview
 
 The minimap is implemented through the `Minimap` class, which defines a dedicated **rendering subsystem** that projects 3D world data onto a flat, top-down 2D texture.
 This texture is displayed on the main screen as a small inset view (a "radar"-like overlay), positioned on the bottom right side.
@@ -1016,7 +1157,7 @@ During initialization (`initBuffers()`), the class sets up:
 - A depth buffer for proper layering of objects
 - Both shader programs required for map rendering and screen compositing: `minimapShader` and `minimapScreenShader`
 
-### 2.3.2 World-to-Minimap Projection
+### 7.3.2 World-to-Minimap Projection
 
 The minimap uses an orthographic projection to flatten 3D world positions onto a 2D plane:
 
@@ -1034,7 +1175,7 @@ convertBezierPointsToObjects();
 Each structure stores its `position`, `radius`, and `color`, and is rendered as a small quad via `glDrawElements()`.
 Uniforms such as `planetPos`, `planetColor`, and `planetScale` are passed to the minimap shader to control the visual appearance of each element.
 
-### 2.3.3 Minimap Rendering Shader
+### 7.3.3 Minimap Rendering Shader
 
 The minimap vertex shader (`shaders/minimap_vert.glsl`) projects each object into 2D space using orthographic coordinates.
 Each vertex represents a corner of a simple quad scaled and positioned according to the object's attributes:
@@ -1070,7 +1211,7 @@ void main() {
 This logic allows planets and trajectory points to appear as circles, while non-planetary objects (such as the battlecruiser indicator) render as squares.
 The final color is assigned via the `planetColor` uniform from the C++ renderer.
 
-### 2.3.4 On-Screen Compositing
+### 7.3.4 On-Screen Compositing
 
 The screen-space shader pair (`shaders/minimap_screen_vert.glsl` and `shaders/minimap_screen_frag.glsl`) is responsible for displaying the generated minimap texture on the main window.
 
@@ -1094,7 +1235,7 @@ void main()
 This rendering step maps the off-screen minimap texture onto a 2D quad placed in the bottom-right corner of the viewport, creating a non-intrusive visual overlay that updates in real time.
 
 
-# 3. Skybox
+# 8. Skybox
 
 With the planetary system and battlecruiser fully functional, one final element is required to give the simulation a sense of scale and depth: the **skybox**.
 Without it, the universe would appear as an empty void, lacking any distant visual context (Figure 20).
@@ -1119,7 +1260,7 @@ All other scene elements (planets, ships, and particles) are rendered on top of 
 
 The entire system is implemented within the `Skybox` class, which encapsulates loading, geometry setup, and rendering of a cubemap texture that forms the scene's background.
 
-## 3.1 Overview and Responsibilities
+## 8.1 Overview and Responsibilities
 
 At a high level, the Skybox class handles three major tasks:
 1. **Cubemap loading**: importing six images that represent the faces of a cube.
@@ -1128,7 +1269,7 @@ At a high level, the Skybox class handles three major tasks:
 
 Each step contributes to a self-contained OpenGL subsystem that provides a visually convincing background environment.
 
-## 3.2 Cubemap Loading
+## 8.2 Cubemap Loading
 
 The private loader function `loadCubemap(const std::vector<std::string>& faces)` loads the six cubemap textures corresponding to the six faces of a cube:
 | Face Index | Cubemap Target                   | Description |
@@ -1156,7 +1297,7 @@ Two static arrays define the skybox’s geometry:
 
 These buffers are uploaded once in the constructor and reused each frame for rendering.
 
-## 3.3 Rendering
+## 8.3 Rendering
 
 The draw method `draw(glm::mat4 view, glm::mat4 projection)` handles the runtime rendering of the skybox each frame.
 
@@ -1197,7 +1338,7 @@ The skybox rendering pipeline is represented by the following table:
 | **5** | Clean up GPU resources                              | `~Skybox()`             |
 
 
-## 3.4 Shader Overview
+## 8.4 Shader Overview
 
 The skybox uses a pair of lightweight shaders: a vertex and a fragment shader (`shaders/skybox_vert.glsl` and `shaders/skybox_frag.glsl`), that work together to render the cubemap environment efficiently.
 Their main role is to project a cube around the camera and sample the appropriate texture color from the cubemap based on viewing direction.
@@ -1218,3 +1359,6 @@ color = texture(skybox, texCoords);
 
 This simple operation retrieves the correct section of the environment image corresponding to the viewer's orientation, producing a continuous, seamless panoramic background.
 Together, these shaders form an extremely efficient rendering stage that visually encloses the entire scene and provides the base for reflection sampling in the battlecruiser's PBR shader.
+
+# 9. Summary
+This assignment demonstrates the integration of advanced 3D graphics techniques in OpenGL, including PBR shading, shadow mapping, procedural terrain, particle systems, and dynamic camera controls. The battlecruiser and solar system modules showcase both technical and artistic workflows, from CAD modeling to real-time rendering. Features such as eclipses, animated textures, and hierarchical transformations contribute to a visually rich and interactive simulation. The project highlights effective collaboration, modular design, and the practical application of modern graphics algorithms.

@@ -88,7 +88,7 @@ int main(int argc, char** argv) {
         config_path = argv[1];
     }
 
-    config_path = RESOURCE_ROOT "configurations/demo.toml";
+    // config_path = RESOURCE_ROOT "configurations/demo.toml";
 
     //// -------- Setup:
     /// ---- Load configuration

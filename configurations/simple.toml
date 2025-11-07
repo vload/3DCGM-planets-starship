@@ -18,7 +18,7 @@ look_speed = 0.005                 # this is basically sensitivity
 
 [planets]
 enable_body_tesellation = true
-target_triangle_height = 1.0
+target_triangle_height = 5.0
 ico_mesh_resolution = 8
 fallback_color = [1.0, 0.3, 0.3]
 binary_system = false
