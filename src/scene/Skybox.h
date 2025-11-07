@@ -66,6 +66,10 @@ class Skybox {
     }
 
     void draw(glm::mat4 view, glm::mat4 projection) {
+        if (!showSkybox) {
+            return;
+        }
+
         glDepthFunc(GL_LEQUAL);
         glDepthMask(GL_FALSE);  // Don't write skybox to depth buffer
 
@@ -90,6 +94,12 @@ class Skybox {
     }
 
     unsigned int getCubemapTexture() { return _cubemapTexture; }
+
+    void imGuiControl() {
+        ImGui::Separator();
+        ImGui::Text("Skybox Control");
+        ImGui::Checkbox("Show Skybox", &showSkybox);
+    }
 
    private:
     unsigned int loadCubemap(const std::vector<std::string>& faces) {
@@ -137,6 +147,8 @@ class Skybox {
     };
 
     Shader shader;
+
+    bool showSkybox = true;
 
     GLuint _vao = 0;
     unsigned int vbo = 0;
