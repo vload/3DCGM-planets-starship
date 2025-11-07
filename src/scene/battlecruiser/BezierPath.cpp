@@ -221,34 +221,6 @@ void BezierPath::initializeBezierPathMovement(const Config::BattlecruiserPathInf
 }
 
 void BezierPath::updateVelocityPositionPathMovement(float deltaTime) {
-    // if (timeBezierPath == 1.0f) {
-    //     timeBezierPath = 0.0f;
-    //     currentCurvePath += 1;
-    //
-    //     if (currentCurvePath == bezier_curve_list.size())
-    //         currentCurvePath = 0;
-    // }
-    //
-    // float speed = glm::length(velocity);
-    // glm::vec3 derivativeBezier = Battlecruiser::derivativeBezier(bezier_curve_list[currentCurvePath].p0,
-    //                                                              bezier_curve_list[currentCurvePath].p1,
-    //                                                              bezier_curve_list[currentCurvePath].p2,
-    //                                                              bezier_curve_list[currentCurvePath].p3,
-    //                                                              timeBezierPath);
-    // float lengthCurveBezier = glm::length(derivativeBezier);
-    //
-    // timeBezierPath += (speed / lengthCurveBezier) * deltaTime;
-    // timeBezierPath = glm::clamp(timeBezierPath, 0.0f, 1.0f);
-    //
-    //
-    //
-    // glm::vec3 newPosition = bezier(bezier_curve_list[currentCurvePath].p0, bezier_curve_list[currentCurvePath].p1,
-    //                   bezier_curve_list[currentCurvePath].p2, bezier_curve_list[currentCurvePath].p3, timeBezierPath);
-    //
-    // std::cout << timeBezierPath << " " << glm::distance(newPosition, position) << std::endl;
-    //
-    // position = newPosition;
-    // velocity = glm::normalize(derivativeBezier) * speed;
     auto &curve = bezier_curve_list[currentCurvePath];
     auto &table = bezier_arc_length_tables_list[currentCurvePath];
 

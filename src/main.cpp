@@ -216,6 +216,12 @@ int main(int argc, char** argv) {
 
             /// -- ImGui Battlecruiser Particles controls
             particles.imGuiControl();
+
+            /// -- ImGui Minimap controls
+            minimap.imGuiControl();
+
+            /// -- ImGui Skybox controls
+            skybox.imGuiControl();
         }
 
         ImGui::End();

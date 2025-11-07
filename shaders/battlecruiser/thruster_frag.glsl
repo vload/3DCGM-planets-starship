@@ -68,5 +68,5 @@ void main() {
 
     vec3 L = normalize(lightPos - fragWorldPos);
     vec3 lightEffect = thrusterLightColor * thrusterIntensity * attenuation * max(dot(fragNormal, L), 0.0);
-    result += lightEffect; outColor = vec4(result, 1.0);
+    result += lightEffect; outColor = vec4(result, 0.2);
 }

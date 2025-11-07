@@ -19,6 +19,8 @@ in vec3 fragPos;
 in vec2 fragTexCoord;
 in mat3 tbn;
 
+uniform int usePBRShader;
+
 float dotProduct(vec3 X, vec3 Y) {
     return max(dot(X, Y), 0.0);
 }
@@ -179,43 +181,60 @@ void main()
     }
 
     vec3 baseColor = texture(textureBase, fragTexCoord).rgb;
-    baseColor = pow(baseColor, vec3(2.2)); // convert from sRGB to linear space
     vec3 normalMap = texture(textureNormal, fragTexCoord).rgb;
     float metallic = texture(textureMetallic, fragTexCoord).r;
     float roughness = texture(textureRoughness, fragTexCoord).r;
-    vec3 f0 = mix(vec3(0.04), baseColor, metallic);
 
     normalMap = normalize(tbn * (normalMap * 2.0 - 1.0));
-
-    vec3 hdrColor = vec3(0.0);
-
+    vec3 L1 = normalize(lightPosition1 - fragWorldPos);
     vec3 N = normalMap;
     vec3 V = normalize(cameraPos - fragWorldPos);
-    vec3 L1 = normalize(lightPosition1 - fragWorldPos);
-    vec3 H1 = normalize(L1 + V);
+    vec3 f0 = mix(vec3(0.04), baseColor, metallic);
 
-    vec3 F1 = fresnel(f0, V, H1);
-    float kd1 = (1.0 - max(max(F1.r, F1.g), F1.b)) * (1.0 - metallic);
-    vec3 diffuse1 = kd1 * diffuseLambert(baseColor);
+    vec3 resultColorPbr = baseColor;
+
+    if (usePBRShader == 1) {
+        vec3 H1 = normalize(L1 + V);
+
+        vec3 F1 = fresnel(f0, V, H1);
+        float kd1 = (1.0 - max(max(F1.r, F1.g), F1.b)) * (1.0 - metallic);
+        vec3 diffuse1 = kd1 * diffuseLambert(baseColor);
+
+        vec3 specular1 = specularCook(f0, roughness, V, L1, N, H1);
+
+        resultColorPbr = diffuse1 + specular1;
+    }
+
+    vec3 ambient = 0.1 * baseColor;
+    vec3 finalColor = ambient;
     float shadowMultiplier1 = 1.0 - shadow_calculation(fragWorldPos, normalMap, L1, lightViewMatrix1, lightProjectionMatrix1, shadowMap1);
-    vec3 specular1 = specularCook(f0, roughness, V, L1, N, H1);
 
-    hdrColor += (eclipseLightFactor1 * shadowMultiplier1) * sunColInt[0].rgb * sunColInt[0].w * dotProduct(L1, N) * (diffuse1 + specular1) * exposure;
+    finalColor += (eclipseLightFactor1 * shadowMultiplier1) * sunColInt[0].rgb * sunColInt[0].w * dotProduct(L1, N) * resultColorPbr * exposure;
 
     if(binary_system == 1) {
+        vec3 resultColorPbr2 = baseColor;
         vec3 L2 = normalize(lightPosition2 - fragWorldPos);
-        vec3 H2 = normalize(L2 + V);
 
-        vec3 F2 = fresnel(f0, V, H2);
-        float kd2 = (1.0 - max(max(F2.r, F2.g), F2.b)) * (1.0 - metallic);
-        vec3 diffuse2 = kd2 * diffuseLambert(baseColor);
+        if (usePBRShader == 1) {
+
+            vec3 H2 = normalize(L2 + V);
+
+            vec3 F2 = fresnel(f0, V, H2);
+            float kd2 = (1.0 - max(max(F2.r, F2.g), F2.b)) * (1.0 - metallic);
+            vec3 diffuse2 = kd2 * diffuseLambert(baseColor);
+
+            vec3 specular2 = specularCook(f0, roughness, V, L2, N, H2);
+
+            resultColorPbr2 = diffuse2 + specular2;
+        }
+
+
         float shadowMultiplier2 = 1.0 - shadow_calculation(fragWorldPos, normalMap, L2, lightViewMatrix2, lightProjectionMatrix2, shadowMap2);
-        vec3 specular2 = specularCook(f0, roughness, V, L2, N, H2);
 
-        hdrColor += (eclipseLightFactor2 * shadowMultiplier2) * sunColInt[1].rgb * sunColInt[1].w * dotProduct(L2, N) * (diffuse2 + specular2) * exposure;
+        finalColor += (eclipseLightFactor2 * shadowMultiplier2) * sunColInt[1].rgb * sunColInt[1].w * dotProduct(L2, N) * resultColorPbr2 * exposure;
     }
-    // No tone mapping or gamma correction, because our desired effect is to have very bright highlights
-    outColor = vec4(hdrColor, 1.0);
+    
+    outColor = vec4(finalColor, 1.0);
     } else {
         // do nothing for depth-only pass
     }
